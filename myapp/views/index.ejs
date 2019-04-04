@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <% include Head %>
+</head>
+<body>
+  <% include Menu %>
+</br>
+  <div class="container">
+      <div class="row">
+          <div class="col-md-12">
+              <p>
+                  <button id="btn-add-tab" type="button" class="btn btn-dark btn-lg pull-right">Agregar Pestaña</button>
+              </p>
+              <!-- Nav tabs -->
+              <ul id="tab-list" class="nav nav-tabs" role="tablist">
+                  <li class="nav-link active"><a  href="#tab1" onclick = "setTabSeleccionado('Tab1')" role="tab" data-toggle="tab">Tab 1</a></li>
+              </ul>
+  
+              <!-- Tab panes -->
+              <div id="tab-content" class="tab-content">
+                <div class="tab-pane fade in active" id="tab1">
+                    <div id = "Tab1"></div>
+                </div>
+              </div>
+          </div>
+      </div>
+  </div>
+</br>
+  <div class="container">
+    <div class="row">
+      <div class="col-md-12">
+          <ul id="salida-list" class="nav nav-tabs" role="tablist">
+              <li class="nav-link active"><a  href="#errores" role="tab" data-toggle="tab">Errores</a></li>
+              <li class="nav-link active"><a  href="#consola" role="tab" data-toggle="tab">Consola</a></li>
+          </ul>
+
+          <!-- Tab panes -->
+          <div id="salida-content" class="tab-content">
+            <div class="tab-pane fade in active" id="errores">
+                <div id = "errores"></div>
+                <script>
+                    var editor = CodeMirror(document.getElementById("errores"),{
+                    mode: "text/x-java",
+                    theme: "3024-night",
+                    lineNumbers: false
+                  });
+                  editor.setSize("1110","200");
+                </script>
+            </div>
+            <div class="tab-pane fade in active" id="consola">
+                <div id = "consola"></div>
+                <script>
+                    var editor = CodeMirror(document.getElementById("consola"),{
+                    mode: "text/x-java",
+                    theme: "3024-night",
+                    lineNumbers: false
+                  });
+                  editor.setSize("1110","200");
+                </script>
+            </div>
+          </div>
+      </div>
+    </div>
+  </div>
+</br>
+  <% include Script %>
+</body>
+</html>
