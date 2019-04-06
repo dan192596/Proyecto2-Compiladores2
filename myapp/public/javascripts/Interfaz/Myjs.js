@@ -76,6 +76,27 @@ var editor = CodeMirror(document.getElementById("console"),{
   });
 
 $(document).ready(function () {
+    //Realizar la traduccion
+    $('#btn-compilar').click(function () {
+        var editor=null; 
+        for(let i = 0;i<ListaEditor.length;i++){
+            if(ListaEditor[i]['nombre']==PestañaActual){
+                editor = ListaEditor[i]['editor'];
+                break;
+            }
+        }
+        if(editor ==null){
+            alert('No encontrado');
+            return;
+        }
+        var texto = editor.getValue('\n');
+        try {
+            var respuesta = parser.parse(String(texto));
+            alert(respuesta.Ejecutar());
+        } catch (error) {
+            alert('Ocurrio un error '+error);
+        }        
+    });
     //INICIALIZAR EL PRIMER CODEMIRROR
     //Lo realizo aca porque si no manda a llamar la funcion AgregarEditor y esta existe hasta leer el documento
     var editor = CodeMirror(document.getElementById("Tab1"),{

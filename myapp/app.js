@@ -4,6 +4,24 @@ var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
 
+//INICIO CREACION DE GRAMATICA 3D
+//Lo realiza una vez que inicia el servidor, si hago el comando
+//nodemon start, nodemon estara reiniciandose constantemente porque estoy reescribiendo el archivo
+//public/javascripts/Gramatica3D.js
+var Parser = require('jison').Parser;
+const fs = require('fs');
+
+var grammar = fs.readFileSync("Analisis_3D/Gramatica.jison", "utf8");
+var parser = new Parser(grammar);
+var parserSource = parser.generate();
+if(fs.readFileSync("public/javascripts/Arbol_3D/Gramatica3D.js", "utf8")!=parserSource){
+  fs.writeFileSync('public/javascripts/Arbol_3D/Gramatica3D.js',parserSource,function(error){
+    if(error){
+        console.log('Error al escribir public/javascripts/Arbol_3D/Gramatica3D.js');
+    }        
+  });
+}
+
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
 
