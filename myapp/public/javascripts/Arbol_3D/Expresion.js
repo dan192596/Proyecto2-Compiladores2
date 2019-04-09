@@ -38,6 +38,9 @@ function Aritmetica (x, y, z,linea) {
         return null;
     };
 }
+//#####################
+// R E L A C I O N A L
+//#####################
 function Relacional (x, y, z,linea) {
     this.Linea = linea;
     this.Izq = x; 
@@ -73,6 +76,9 @@ function Relacional (x, y, z,linea) {
         return null;
     };
 }
+//#############
+//N U M E R O
+//#############
 function Numero(x,linea) {
     this.Linea = linea;
     this.Valor = x;
@@ -87,6 +93,9 @@ function Numero(x,linea) {
         return this.Valor;
     };
 }
+//##################
+// C A R A C T E R 
+//##################
 function Caracter(x,linea) {
     this.Linea = linea;
     this.Valor = x;
@@ -101,6 +110,9 @@ function Caracter(x,linea) {
         return this.Valor;
     };
 }
+//#################
+// T E M P O R A L
+//#################
 function Temporal(x,linea) {
     this.Linea = linea;
     this.Valor = x;
@@ -112,9 +124,12 @@ function Temporal(x,linea) {
         ErroresPadre.AgregarErrores(this.Errores);
     };
     this.Ejecutar = function(EntornoPadre){
-        return this.Valor;
+        return EntornoPadre.getValor(Valor);//Valor guarda el nombre del temporal t(n)
     };
 }
+//################
+// L I M P I A R
+//################
 function Limpiar(x,y,linea) {
     this.Linea = linea;
     this.Inicio = x; 
@@ -130,6 +145,9 @@ function Limpiar(x,y,linea) {
         return this.Valor;
     };
 }
+//##################
+// I M P R I M I R
+//##################
 function Imprimir(x,y,linea) {
     this.Linea = linea;
     this.CharTerminal = x; 
@@ -160,6 +178,9 @@ function Imprimir(x,y,linea) {
         return null;
     };
 }
+//############################
+// L L A M A D A M E T O D O
+//############################
 function LLamadaMetodo(x,linea) {
     this.Linea = linea;
     this.Identificador = x;
@@ -170,66 +191,20 @@ function LLamadaMetodo(x,linea) {
     this.RecuperarErrores= function(ErroresPadre) {
         ErroresPadre.AgregarErrores(this.Errores);
     };
-    this.Ejecutar = function(){
-        return this.Valor;
+    this.Ejecutar = function(EntornoPadre){
+        if(!EntornoPadre.ExisteMetodo(Identificador)){
+            AgregarError("El metodo no existe");
+        }
+        let f = EntornoPadre.getMetodo(Identificador);
+        let inst = f.Instrucciones;//Voy a traer las instrucciones porque el ejecutar de la funcion es para meterlo al entorno
+        f.Errorres = new Errores3D();
+        f.Instrucciones.Ejecutar(EntornoPadre);//Ejecuto el bloque de instrucciones
+        f.RecuperarErrores(this.Errores);
     };
-    /*if(!EntornoPadre.FuncionExiste((String)this.valor)){
-        AgregarError("La funcion No existe");
-    }
-    Funcion f = EntornoPadre.getFuncion((String)this.valor);        
-    if(f.Parametros.size()!=Valores.size()){
-        AgregarError("No concuerda la cantidad de parametros con la cantidad de valores");
-        return null;
-    }
-    //Recuperar entorno global y enviarselo al local
-    Entorno Local = new Entorno(EntornoPadre.getEntornoGlobal());
-    for(int i = 0;i<f.Parametros.size();i++){
-        Local.agregar((String)f.Parametros.get(i));
-        Object Variable = Valores.get(i).ejecutar(EntornoPadre);
-        Valores.get(i).RecuperarErrores(Errores);
-        if(Variable==null){
-            Local.setValor((String)f.Parametros.get(i), Variable);
-        }else if(Variable instanceof LinkedList){                
-            Local.setArreglo((String)f.Parametros.get(i), (LinkedList)Variable);                
-        }else if(Variable instanceof Objeto){
-            Local.setObjeto((String)f.Parametros.get(i), (Objeto)Variable);
-        }else{
-            Local.setValor((String)f.Parametros.get(i), Variable);
-        }
-    }
-    Local.NivelDetener = 0;
-    Local.NivelRetornar = 1;
-    int NivelDetenerActual = Local.NivelDetener;
-    int NivelRetornarActual = Local.NivelRetornar;        
-    for(NodoArbol ins:f.Instrucciones){
-        if(ins instanceof Instruccion){                
-            ((Instruccion)ins).ejecutar(Local);
-        }else if(ins instanceof Expresion){
-            ((Expresion)ins).ejecutar(Local);
-        }
-        ins.RecuperarErrores(Errores);
-        if(Local.NivelDetener<0){
-            AgregarError("Se coloco detener y no se encuentra dentro de una instruccion selecciona");
-            Local.RecuperarErrores(Errores);
-            return null;
-        }
-        if(Local.NivelRetornar<0){
-            AgregarError("Se coloco retornar y dio un error al hacer retorno");
-            Local.RecuperarErrores(Errores);
-            return null;
-        }
-        if(NivelDetenerActual != Local.NivelDetener){
-            Local.RecuperarErrores(Errores);
-            return null;
-        }
-        if(NivelRetornarActual!=Local.NivelRetornar){
-            Local.RecuperarErrores(Errores);
-            return Local.ValorRetorno;//El valor de retorno se almacena en esta variable global
-        }
-    }
-    Local.RecuperarErrores(Errores);
-    return null;*/
 }
+//####################################
+// D E C L A R A C I O N M E T O D O
+//####################################
 function DeclaracionMetodo(x,y,linea) {
     this.Linea = linea;
     this.Identificador = x;
@@ -244,10 +219,17 @@ function DeclaracionMetodo(x,y,linea) {
             this.Instrucciones[i].RecuperarErrores(ErroresPadre);
         }
     };
-    this.Ejecutar = function(){
-        return this.Valor;
+    this.Ejecutar = function(EntornoPadre){
+        if(EntornoPadre.ExisteMetodo(this.Identificador)){
+            AgregarError("Ya se declaro una funcion con este nombre: "+Identificador);
+            return;
+        }
+        EntornoPadre.AgregarMetodo(this.Identificador,this);
     };
 }
+//###################################################
+// S A L T O C O N D I C I O N A L V E R D A D E R O
+//###################################################
 function SaltoCondicionalVerdadero(x,y,linea) {
     this.Linea = linea;
     this.Relacional=x;
@@ -262,10 +244,22 @@ function SaltoCondicionalVerdadero(x,y,linea) {
             Relacional.RecuperarErrores(ErroresPadre);
         }
     };
-    this.Ejecutar = function(){
-        //:'v
+    this.Ejecutar = function(EntornoPadre){
+        let ValRelacional = Relacional.Ejecutar(EntornoPadre);
+        if(!(ValRelacional instanceof Boolean)){
+            AgregarError('Se esperaba un valor booleano')
+            return;
+        }
+        if(ValRelacional){
+            //Me voy a la etiqueta
+        }else{
+            //Sigo de largo
+        }
     };
 }
+//############################################
+// S A L T O C O N D I C I O N A L F A L S O
+//############################################
 function SaltoCondicionalFalso(x,y,linea) {
     this.Linea = linea;
     this.Relacional=x;
@@ -281,9 +275,21 @@ function SaltoCondicionalFalso(x,y,linea) {
         }
     };
     this.Ejecutar = function(){
-        //:'v
+        let ValRelacional = Relacional.Ejecutar(EntornoPadre);
+        if(!(ValRelacional instanceof Boolean)){
+            AgregarError('Se esperaba un valor booleano')
+            return;
+        }
+        if(ValRelacional){
+            //Sigo de largo
+        }else{
+            //Me voy a la etiqueta
+        }
     };
 }
+//#######################################
+// S A L T O   I N C O N D I C I O N A L
+//#######################################
 function SaltoIncondicional(x,linea) {
     this.Linea = linea;
     this.Etiqueta = x;
@@ -295,9 +301,12 @@ function SaltoIncondicional(x,linea) {
         ErroresPadre.AgregarErrores(this.Errores);
     };
     this.Ejecutar = function(){
-        //:'v
+        //salto alv
     };
 }
+//############
+// S A L T O
+//############
 function Salto(x,linea) {
     this.Linea = linea;
     this.Etiqueta = x;
@@ -309,9 +318,12 @@ function Salto(x,linea) {
         ErroresPadre.AgregarErrores(this.Errores);
     };
     this.Ejecutar = function(){
-        //:'v        
+        //Etiqueta a donde llega, tengo que ver como hago esto
     };
 }
+//#####################
+// A S I G N A C I O N
+//#####################
 function Asignacion(x,y,linea) {
     this.Linea = linea;
     this.Identificador=x;
@@ -331,6 +343,9 @@ function Asignacion(x,y,linea) {
         EntornoPadre.setValor(this.Identificador, this.Val);        
     };
 }
+//############################
+// I N S T R U C C I O N E S
+//############################
 function Instrucciones(lista,inst,linea) {
     this.Linea = linea;
     this.Lista = [];
@@ -355,6 +370,9 @@ function Instrucciones(lista,inst,linea) {
         }
     };
 }
+//#######################################
+// B l o q u e I n s t r u c c i o n e s 
+//#######################################
 function BloqueInstrucciones(x,linea) {
     this.Linea = linea;
     this.Instrucciones = (x==null)? []:x;
@@ -375,14 +393,102 @@ function BloqueInstrucciones(x,linea) {
 //#########################################################
 //## CLASES PARA EL FUNCIONAMIENTO GENERAL DEL CODIGO 3D ##
 //#########################################################
+
+// #########################################
+// M E M O R I A   S T A C K   Y   H E A P 
+//##########################################
+function Memoria3D(){
+    this.m = [];
+    this.puntero = 0;//Almacena la posicion del espacio vacio
+    this.Errores = new Errores3D();
+    this.AgregarError = function(descripcion){
+        this.Errores.Agregar('semantico',descripcion,'Memoria',-1);
+    };
+    this.RecuperarErrores= function(ErroresPadre) {
+        ErroresPadre.AgregarErrores(Errores);
+    };
+    this.Agregar=function(Valor){
+        this.puntero = this.m.push(Valor);//push retorno el lenght del arreglo
+ 		return true;
+    }
+    this.Eliminar=function(Inicio, Tam){
+        if((Inicio+Tam)>=m.length){//Es porque se esta trando de borrar y ya no es parte de lo que esta en la pila
+            AgregarError('La posicion inicio mas el tamaño sobrepasan lo contendio en stack');
+            return false;
+        }
+        if((Inicio+Tam)!=(m.length-1)){
+            AgregarError('Esta tratando de limpiar la pila y no es lo ultimo, habra una perdia de informacion')
+        }
+        for(let i =0;i<Tam;i++){
+            m.pop();
+        }
+    }
+    this.SetValor=function(posicion, Valor){
+        if(posicion>=m.length){
+            AgregarError('Overflow');
+            return false;
+        }
+        m[posicion]=Valor;
+        return true;
+    }
+    this.getValor = function(posicion){
+        if(posicion>=m.length){
+            AgregarError('Overflow');
+            return null;
+        }
+        return m[posicion];
+    }
+}
+//### T e m p o r a l ####
+function ListaTemporal3D(){
+    this.Lista = [];
+    this.Errores = new Errores3D();
+    this.AgregarError = function(descripcion){
+        this.Errores.Agregar('semantico',descripcion,'Manejo temporales',-1);
+    };
+    this.RecuperarErrores= function(ErroresPadre) {
+        ErroresPadre.AgregarErrores(Errores);
+    };
+    this.SetValorTemporal=function(temporal,valor){
+        for(let i =0;i<Lista.length;i++){
+            if(Lista[i].toString()==temporal.toLowerCase()){
+                Lista[i].Valor = valor;
+                return;
+            }
+        }
+        let temporalnuevo = new Temporal3D(temporal,valor);
+        Lista.push(temporalnuevo);
+    }
+    this.GetValorTemporal=function(temporal){
+        for(let i =0;i<Lista.length;i++){
+            if(Lista[i].toString()==temporal.toLowerCase()){
+                return Lista[i].Valor;
+            }
+        }
+        AgregarError('Temporal '+temporal+' no existe');
+        return null;
+    }
+}
+function Temporal3D(nombre,Valor){    
+    this.Nombre=nombre;
+    this.Valor=Valor;
+    this.toString=function(){
+        return Nombre.toLowerCase();
+    }
+}
+
+//###############
+// E N T O R N O 
+//###############
 function Entorno(){
     this.Nodos = [];
     this.TablaPadre = null;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Entorno',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Entorno',-1);
     };
     this.RecuperarErrores= function(ErroresPadre) {
+        ErroresPadre.AgregarErrores(Error);
         if(Instrucciones!=null){
             for(let i =0;i<Nodos.length;i++){
                 Nodos[i].RecuperarErrores();
@@ -392,11 +498,11 @@ function Entorno(){
     this.AgregarTemporal = function(Identificador,Valor){
         let Nodo = new Simbolo(Identificador,Valor,'temporal');
         Nodos.push(Nodo);
-    }
+    };
     this.AgregarMetodo = function(Identificador,Inst){
         let Nodo = new Simbolo(Identificador,Inst,'metodo');
         Nodos.push(Nodo);
-    }
+    };
     this.ExisteTemporal=function(temporal){
         for(let i =0;i<Nodos.length;i++){
             if(Nodos[i].Identificador == temporal&&Nodos[i].TipoSimbolo=='temporal'){
@@ -404,7 +510,7 @@ function Entorno(){
             }
         }
         return false;
-    }
+    };
     this.ExisteMetodo=function(Identificador){
         for(let i =0;i<Nodos.length;i++){
             if(Nodos[i].Identificador == Identificador&&Nodos[i].TipoSimbolo=='metodo'){
@@ -412,7 +518,7 @@ function Entorno(){
             }
         }
         return false;
-    }
+    };
     this.getValor = function(temporal){
         for(let i =0;i<Nodos.length;i++){
             if(Nodos[i].Identificador == temporal&&Nodos[i].TipoSimbolo=='temporal'){
@@ -420,7 +526,7 @@ function Entorno(){
             }
         }
         return undefined;
-    }
+    };
     this.getMetodo=function(Identificador){
         for(let i =0;i<Nodos.length;i++){
             if(Nodos[i].Identificador == Identificador&&Nodos[i].TipoSimbolo=='metodo'){
@@ -435,16 +541,18 @@ function Entorno(){
                 return Nodos[i].setValor(Valor);
             }
         }
-    }
+    };
     this.setMetodo = function(Identificador,Valor){
         for(let i =0;i<Nodos.length;i++){
             if(Nodos[i].Identificador == Identificador&&Nodos[i].TipoSimbolo=='metodo'){
                 return Nodos[i].setValor(Valor);
             }
         }
-    }
+    };
 }
-
+//##############
+//S I M B O L O 
+//##############
 function Simbolo(Id,Val,tipo){
     this.Identificador =Id;
     this.Valor = Val;
@@ -461,7 +569,7 @@ function Simbolo(Id,Val,tipo){
     }
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Temporal',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Temporal',-1);
     };
     this.RecuperarErrores= function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores); 
@@ -471,7 +579,6 @@ function Simbolo(Id,Val,tipo){
 //#######################
 //## MANEJO DE ERRORES ##
 //#######################
-
 function Error3D(tipo,descripcion, clase, fila){
     this.tipo = tipo;
     this.descripcion = descripcion;
