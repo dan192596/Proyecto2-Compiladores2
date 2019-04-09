@@ -81,7 +81,7 @@ L[0-9]+         {return 'etiqueta'}
 %% /* language grammar */
 
 INICIO 
-    : INSTRUCCIONES EOF {$$ =  $1; }
+    : INSTRUCCIONES EOF {$$ =  $1; return $1; }
     | EXPRESION EOF {$$  = $1;return $1;}
     ;
 

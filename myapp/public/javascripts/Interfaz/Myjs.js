@@ -1,10 +1,12 @@
 var NumeroTab = 1;
 var PestañaActual ='Tab1';
 var ListaEditor = [];
+var consola_201404268;
+var errores_201404268;
 //Codigo para Abrir el archivo
 function ManejadorArchivosSeleccionados(evt) {
     var files = evt.target.files;    
-    for (var i = 0, f; f = files[i]; i++) {        
+    for (var i = 0, f; f = files[i]; i++) {
         var reader = new FileReader();
         reader.onload = (function(theFile) {
             return function(e) {
@@ -92,7 +94,7 @@ $(document).ready(function () {
         var texto = editor.getValue('\n');
         try {
             var respuesta = parser.parse(String(texto));
-            alert(respuesta.Ejecutar());
+            respuesta.Ejecutar();
         } catch (error) {
             alert('Ocurrio un error '+error);
         }        
@@ -105,6 +107,20 @@ $(document).ready(function () {
         lineNumbers: true
       });
       AgregarEditor('Tab1',editor);
+      //INICIALIZAR CONSOLA
+        consola_201404268 = CodeMirror(document.getElementById("consola"),{
+        mode: "text/x-java",
+        theme: "3024-night",
+        lineNumbers: false
+        });
+        consola_201404268.setSize("1110","200");
+      //INICIALIZAR ERRORES
+          errores_201404268 = CodeMirror(document.getElementById("errores"),{
+            mode: "text/x-java",
+            theme: "3024-night",
+            lineNumbers: false
+          });
+          errores_201404268.setSize("1110","200");
     //################################
     //## MANEJO DE ACCIONES DE MENU ##
     //################################
