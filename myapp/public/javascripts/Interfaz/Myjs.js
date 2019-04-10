@@ -94,7 +94,10 @@ $(document).ready(function () {
         var texto = editor.getValue('\n');
         try {
             var respuesta = parser.parse(String(texto));
-            respuesta.Ejecutar();
+            //Ejecucion 3D
+            let Entorno = new Entorno3D();
+            let Inst = new Instrucciones(respuesta,-1);
+            Inst.Ejecutar(Entorno);
         } catch (error) {
             alert('Ocurrio un error '+error);
         }        
@@ -111,14 +114,16 @@ $(document).ready(function () {
         consola_201404268 = CodeMirror(document.getElementById("consola"),{
         mode: "text/x-java",
         theme: "3024-night",
-        lineNumbers: false
+        lineNumbers: false,
+        readOnly:true
         });
         consola_201404268.setSize("1110","200");
       //INICIALIZAR ERRORES
           errores_201404268 = CodeMirror(document.getElementById("errores"),{
             mode: "text/x-java",
             theme: "3024-night",
-            lineNumbers: false
+            lineNumbers: false,
+            readOnly:true
           });
           errores_201404268.setSize("1110","200");
     //################################

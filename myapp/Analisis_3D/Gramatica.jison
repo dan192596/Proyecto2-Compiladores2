@@ -29,7 +29,6 @@ comentariomultilinea ="/*"~"*/"
 "%"     {return 'modulo';}
 ";"     {return 'puntoycoma';}
 ","     {return 'coma';}
-"="     {return 'igual';}
 "!="    {return 'distintoque';}
 "=="    {return 'igualigual';}
 ">="    {return 'mayorigual';}
@@ -43,6 +42,7 @@ comentariomultilinea ="/*"~"*/"
 "{"     {return 'llaveizq';}
 "}"     {return 'llaveder';}
 ":"     {return 'dospuntos';}
+"="     {return 'igual';}
 
 //PALABRAS RESERVADAS
 "var"   {return 'var';}
@@ -82,17 +82,16 @@ L[0-9]+         {return 'etiqueta'}
 
 INICIO 
     : INSTRUCCIONES EOF {$$ =  $1; return $1; }
-    | EXPRESION EOF {$$  = $1;return $1;}
     ;
 
 BLOQUEINSTRUCCIONES
-    : llaveizq INSTRUCCIONES llaveder { $$ = new BloqueInstrucciones($2,yylineno); }
-    | llaveizq llaveder { $$ = new BloqueInstrucciones(NULL,yylineno); }
+    : llaveizq INSTRUCCIONES llaveder { $$ = new Instrucciones($1,yylineno);}
+    | llaveizq llaveder { $$ = new Instrucciones([],yylineno); }
     ;
 
 INSTRUCCIONES
-    : INSTRUCCIONES INSTRUCCION {$$ = new Instrucciones($1,$2,yylineno); }
-    | INSTRUCCION {$$ = new Instrucciones($1,yylineno); }
+    : INSTRUCCIONES INSTRUCCION {$$ = $1; $$.push($2); }
+    | INSTRUCCION {$$ = [];$$.push($1); }
     ;
 
 INSTRUCCION
@@ -107,8 +106,14 @@ INSTRUCCION
     ;
 
 ASIGNACION
-    : temporal igual EXPRESION puntoycoma {new Asignacion($1,$3,yylineno); }
-    | temporal igual HOJA puntoycoma      {new Asignacion($1,$3,yylineno); }
+    : temporal igual EXPRESION puntoycoma                   {$$=new Asignacion($1,$3,'temporal',yylineno); }
+    | temporal igual HOJA puntoycoma                        {$$=new Asignacion($1,$3,'temporal',yylineno); }
+    | temporal igual heap corizq HOJA corder puntoycoma     {$$=new Asignacion($1,$5,'temporal_heap',yylineno); }
+    | temporal igual stack corizq HOJA corder puntoycoma    {$$=new Asignacion($1,$5,'temporal_stack',yylineno); }
+    | heap corizq HOJA corder igual EXPRESION puntoycoma    {$$=new Asignacion($3,$6,'heap',yylineno); }
+    | heap corizq HOJA corder igual HOJA puntoycoma         {$$=new Asignacion($3,$6,'heap',yylineno); }
+    | stack corizq HOJA corder igual EXPRESION puntoycoma   {$$=new Asignacion($3,$6,'stack',yylineno); }
+    | stack corizq HOJA corder igual HOJA puntoycoma        {$$=new Asignacion($3,$6,'stack',yylineno);}
     ;
 
 SALTO
@@ -132,9 +137,9 @@ LLAMADAMETODO
     ;
 
 IMPRIMIR
-    : print parizq charterminalc coma temporal parder puntoycoma { $$ = new Imprimir('c',$5,yylineno);}
-    | print parizq charterminale coma temporal parder puntoycoma { $$ = new Imprimir('e',$5,yylineno);}
-    | print parizq charterminald coma temporal parder puntoycoma { $$ = new Imprimir('d',$5,yylineno);}
+    : print parizq charterminalc coma HOJA parder puntoycoma { $$ = new Imprimir('c',$5,yylineno);}
+    | print parizq charterminale coma HOJA parder puntoycoma { $$ = new Imprimir('e',$5,yylineno);}
+    | print parizq charterminald coma HOJA parder puntoycoma { $$ = new Imprimir('d',$5,yylineno);}
     ;
 
 LIMPIAR
@@ -154,17 +159,16 @@ ARITMETICA
     | HOJA modulo HOJA          {$$ = new Aritmetica ($1,$3,'%',yylineno);}
     ;
 RELACIONAL
-    : HOJA distintoque HOJA     {$$ = new Relacional ($1,$2,'!=',yylineno);}
-    | HOJA igualigual HOJA      {$$ = new Relacional ($1,$2,'==',yylineno);}
-    | HOJA mayor HOJA           {$$ = new Relacional ($1,$2,'>',yylineno);}
-    | HOJA mayorigual HOJA      {$$ = new Relacional ($1,$2,'>=',yylineno);}
-    | HOJA menor HOJA           {$$ = new Relacional ($1,$2,'<',yylineno);}
-    | HOJA menorigual HOJA      {$$ = new Relacional ($1,$2,'<=',yylineno);}
+    : HOJA distintoque HOJA     {$$ = new Relacional ($1,$3,'!=',yylineno);}
+    | HOJA igualigual HOJA      {$$ = new Relacional ($1,$3,'==',yylineno);}
+    | HOJA mayor HOJA           {$$ = new Relacional ($1,$3,'>',yylineno);}
+    | HOJA mayorigual HOJA      {$$ = new Relacional ($1,$3,'>=',yylineno);}
+    | HOJA menor HOJA           {$$ = new Relacional ($1,$3,'<',yylineno);}
+    | HOJA menorigual HOJA      {$$ = new Relacional ($1,$3,'<=',yylineno);}
     ;
 
 HOJA 
     : entero    {$$ = new Numero(Number(yytext),yylineno);}
-    | decimal   {$$ = new Numero(Number(yytext),yylineno);}
-    | caracter  {$$ = new Caracter(yytext,yylineno);}
+    | decimal   {$$ = new Numero(Number(yytext),yylineno);}    
     | temporal  {$$ = new Temporal(yytext,yylineno);}
     ;
