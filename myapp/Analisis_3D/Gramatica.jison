@@ -4,15 +4,15 @@
 %lex
 %options case-insensitive
 
-Numero        [0-9]+\b
-NumeroDecimal ([0-9]+"."[0-9]+)\b
-Identificador [A-Za-z_][A-Za-z_0-9]*\b
-charterminalc [\"\“\”\']\%"c"[\"\“\”\']
-charterminale [\"\“\”\']\%"e"[\"\“\”\']
-charterminald [\"\“\”\']\%"d"[\"\“\”\']
+Numero        [0-9]+
+NumeroDecimal [0-9]+"."[0-9]+
+Identificador [A-Za-z_][A-Za-z_0-9]*
+charterminalc [\"\“\”\'\‘]\%"c"[\"\“\”\'\’]
+charterminale [\"\“\”\'\‘]\%"e"[\"\“\”\'\’]
+charterminald [\"\“\”\'\‘]\%"d"[\"\“\”\'\’]
 
-comentariounilinea ="/""/".*(\r|\n|\r\n)
-comentariomultilinea ="/*"~"*/"
+comentariounilinea "/""/".*(\r|\n|\r\n)
+comentariomultilinea \/\*(.|\n|\s|\t|\r)*\*\/
 
 %%
 
@@ -20,6 +20,9 @@ comentariomultilinea ="/*"~"*/"
 {comentariounilinea}    {/* Omitir comentario de linea */}
 {comentariomultilinea}  {/* Omitir comentario multilinea */}
 \s+                     {/* Omitir espacio en blanco */}
+\t+                     {/* Omitir espacio en blanco */}
+\r+                     {/* Omitir espacio en blanco */}
+\n+                     {/* Omitir espacio en blanco */}
 
 //TOKENS SIMPLES DEL LENGUAJE
 "+"     {return 'suma';}
@@ -58,7 +61,6 @@ comentariomultilinea ="/*"~"*/"
 "println"   {return 'print';}
 "print"     {return 'print';}
 "iffalse"   {return 'iffalse';}
-"void"      {return 'void';}
 "$$_clean_scope" {return 'cleanscope'}
 
 {NumeroDecimal} {return 'decimal';}
@@ -130,10 +132,10 @@ SALTOCONDICIONAL
     ;
 
 DECLARACIONMETODO
-    : void identificador parizq parder BLOQUEINSTRUCCIONES { $$ = new DeclaracionMetodo($2,$5,yylineno);}
+    : proc identificador begin INSTRUCCIONES end { $$ = new DeclaracionMetodo($2,$4,yylineno);}
     ;
 LLAMADAMETODO
-    : call identificador parizq parder puntoycoma { $$ = new LLamadaMetodo($2,yylineno); }
+    : call identificador puntoycoma { $$ = new LLamadaMetodo($2,yylineno); }
     ;
 
 IMPRIMIR
@@ -143,7 +145,7 @@ IMPRIMIR
     ;
 
 LIMPIAR
-    : cleanscope parizq temporal coma temporal parder puntoycoma {$$ = new Limpiar($3,$5,yylineno)}
+    : cleanscope parizq HOJA coma HOJA parder puntoycoma {$$ = new Limpiar($3,$5,yylineno)}
     ;
 
 EXPRESION 

@@ -11,13 +11,26 @@ var logger = require('morgan');
 var Parser = require('jison').Parser;
 const fs = require('fs');
 
+//Generar gramatica 3D
 var grammar = fs.readFileSync("Analisis_3D/Gramatica.jison", "utf8");
 var parser = new Parser(grammar);
-var parserSource = parser.generate();
+var parserSource = parser.generate({moduleName: "parser3D"});
 if(fs.readFileSync("public/javascripts/Arbol_3D/Gramatica3D.js", "utf8")!=parserSource){
   fs.writeFileSync('public/javascripts/Arbol_3D/Gramatica3D.js',parserSource,function(error){
     if(error){
         console.log('Error al escribir public/javascripts/Arbol_3D/Gramatica3D.js');
+    }        
+  });
+}
+
+//Generar gramaticas CAAS
+grammar = fs.readFileSync("Analisis_CAAS/Gramatica.jison", "utf8");
+parser = new Parser(grammar);
+parserSource = parser.generate({moduleName: "parserCAAS"});
+if(fs.readFileSync("public/javascripts/Arbol_CAAS/GramaticaCAAS.js", "utf8")!=parserSource){
+  fs.writeFileSync('public/javascripts/Arbol_CAAS/GramaticaCAAS.js',parserSource,function(error){
+    if(error){
+        console.log('Error al escribir public/javascripts/Arbol_CAAS/GramaticaCAAS.js');
     }        
   });
 }

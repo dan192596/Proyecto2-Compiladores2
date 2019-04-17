@@ -92,12 +92,37 @@ $(document).ready(function () {
             return;
         }
         var texto = editor.getValue('\n');
-        try {
-            var respuesta = parser.parse(String(texto));
-            //Ejecucion 3D
-            let Entorno = new Entorno3D();
+        try {            
+            var respuesta = parserCAAS.parse(String(texto+"\n"));//Analisis del texto obtenido            
+            //#####  Traduccion a 3D ######
+            //let Inst = new Instrucciones(respuesta,-1);
+            //let Entorno = new Entorno3D(Inst);
+            respuesta.Ejecutar(null);
+            //#########################
+        } catch (error) {
+            alert('Ocurrio un error '+error);
+        }        
+    });
+    $('#btn-Ejecutar3D').click(function () {
+        var editor=null; 
+        for(let i = 0;i<ListaEditor.length;i++){
+            if(ListaEditor[i]['nombre']==PestañaActual){
+                editor = ListaEditor[i]['editor'];
+                break;
+            }
+        }
+        if(editor ==null){
+            alert('No encontrado');
+            return;
+        }
+        var texto = editor.getValue('\n');
+        try {            
+            var respuesta = parser3D.parse(String(texto+"\n"));//Analisis del texto obtenido
+            //#####  Ejecucion 3D #####            
             let Inst = new Instrucciones(respuesta,-1);
+            let Entorno = new Entorno3D(Inst);
             Inst.Ejecutar(Entorno);
+            //#########################
         } catch (error) {
             alert('Ocurrio un error '+error);
         }        
