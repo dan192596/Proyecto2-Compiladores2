@@ -132,8 +132,8 @@ comentariomultilinea \/\*(.|\n|\s|\t|\r)*\*\/
 //###############################################
 
 //Valores variables primitivas
-{Numero}        {return 'valentero';}
 {NumeroDecimal} {return 'valdecimal';}
+{Numero}        {return 'valentero';}
 {Caracter}      {return 'valcaracter';}
 {BooleanoV}     {return 'valverdadero';}
 {BooleanoF}     {return 'valfalso';}
@@ -326,15 +326,15 @@ INSTRUCCIONTRANSFERENCIA
     ;
 
 ASIGNACIONVARIABLE   
-    : VARIABLE '=' E        {$$ = new AsignacionVariable_CAAS($1.Identificador,$3);}
-    | VARIABLEARREGLO '=' E {$$ = new AsignacionVariableArreglo_CAAS($1.Identificador,$1.Dimensiones,$3);}
+    : VARIABLE '=' E        {$$ = new AsignacionVariable_CAAS($1.Identificador,$3,yylineno);}
+    | VARIABLEARREGLO '=' E {$$ = new AsignacionVariableArreglo_CAAS($1.Identificador,$1.Dimensiones,$3,yylineno);}
     ;
 
 DECLARACIONVARIABLE
-    : MODIFICADORES TIPO LISTADECLARACIONVARIABLES        {$$ = new DeclaracionVariable_CAAS($1,$2,$3); }
-    | MODIFICADORES VARIABLE LISTADECLARACIONVARIABLES    {$$ = new DeclaracionVariable_CAAS($1,$2.Identificador,$3);}
-    | TIPO LISTADECLARACIONVARIABLES        {$$ = new DeclaracionVariable_CAAS([],$1,$2); }
-    | VARIABLE LISTADECLARACIONVARIABLES    {$$ = new DeclaracionVariable_CAAS([],$1.Identificador,$2);}
+    : MODIFICADORES TIPO LISTADECLARACIONVARIABLES        {$$ = new DeclaracionVariable_CAAS($1,$2,$3,yylineno); }
+    | MODIFICADORES VARIABLE LISTADECLARACIONVARIABLES    {$$ = new DeclaracionVariable_CAAS($1,$2.Identificador,$3,yylineno);}
+    | TIPO LISTADECLARACIONVARIABLES        {$$ = new DeclaracionVariable_CAAS([],$1,$2,yylineno); }
+    | VARIABLE LISTADECLARACIONVARIABLES    {$$ = new DeclaracionVariable_CAAS([],$1.Identificador,$2,yylineno);}
     | DECLARACIONVARIABLELINKEDLIST {$$ = $1;}
     ;
 
@@ -403,15 +403,6 @@ SUBDECLARACIONVARIABLE
     | identificador                     {$$ = new Object(); $$.Identificador = $1;$$.CantidadDimensiones=0; }
     ;
 
-TIPO
-    : entero    {$$ = 'entero';}
-    | decimal   {$$ = 'decimal';}
-    | caracter  {$$ = 'caracter';}
-    | booleano  {$$ = 'booleano';}
-    | cadena    {$$ = 'cadena';}
-    | void      {$$ = 'vacio';}
-    ;
-
 MODIFICADORES
     : MODIFICADORES MODIFICADOR {$$ = $1; $$.push($1); }
     | MODIFICADOR   {$$ = []; $$.push($1.tolo);}
@@ -450,7 +441,7 @@ EXPARENTESIS
 
 CASTEOEXPLICITO
     : '(' TIPO ')'  E           {$$ = new CasteoExplicitoBasico_CAAS($2, $4); }
-    | '(' E ')' E %prec PROCASTEOEXPLICITO {$$ = new CasteoExplicitoVariable_CAAS($2.Identificador, $4); }
+    | '(' E ')' E %prec PROCASTEOEXPLICITO {temporalCAAS = new Object();temporalCAAS.TipoDato = $3.Identificador; temporalCAAS.Tipo = 'objeto';$$ = new CasteoExplicitoVariable_CAAS(temporalCAAS, $4); }
     | str EXPARENTESIS          {$$ = new ToStr_CAAS($2,yylineno); }
     | toDouble EXPARENTESIS     {$$ = new ToDouble_CAAS($2,yylineno); }
     | toInt EXPARENTESIS        {$$ = new ToInt_CAAS($2,yylineno); }
@@ -482,11 +473,11 @@ ESCRIBIRARCHIVO
     ;
 
 ARITMETICA
-    : E '+' E   {$$ = new Aritmetica_CAAS($1,$3,'+',yylineno); }
-    | E '-' E   {$$ = new Aritmetica_CAAS($1,$3,'-',yylineno); }
-    | E '*' E   {$$ = new Aritmetica_CAAS($1,$3,'*',yylineno); }
-    | E '/' E   {$$ = new Aritmetica_CAAS($1,$3,'/',yylineno); }
-    | E '%' E   {$$ = new Aritmetica_CAAS($1,$3,'%',yylineno); }
+    : E '+' E   {$$ = new Suma_CAAS($1,$3,'+',yylineno); }
+    | E '-' E   {$$ = new Resta_CAAS($1,$3,'-',yylineno); }
+    | E '*' E   {$$ = new Multiplicacion_CAAS($1,$3,'*',yylineno); }
+    | E '/' E   {$$ = new Division_CAAS($1,$3,'/',yylineno); }
+    | E '%' E   {$$ = new Modulo_CAAS($1,$3,'%',yylineno); }
     | '-' E %prec UMENOS {$$ = new UnarioMenos_CAAS($2,yylineno);}
     | '+' E %prec UMAS   {$$ = new UnarioMas_CAAS($2,yylineno);}
     | pow '(' E coma E ')' {$$ = new Potencia_CAAS($3,$5); } 
@@ -500,7 +491,16 @@ RELACIONAL
     | E '<=' E  {$$ = new Relacional_CAAS($1,$3,'<=',yylineno); }
     | E '<' E   {$$ = new Relacional_CAAS($1,$3,'<',yylineno); }
     | E 'instanceof' TIPO       {$$ = new Instanceof_CAAS($1,$3,yylineno);}
-    | E 'instanceof' VARIABLE   {$$ = new Instanceof_CAAS($1,$3,yylineno);}
+    | E 'instanceof' VARIABLE   {temporalCAAS = new Object();temporalCAAS.TipoDato = $3.Identificador; temporalCAAS.Tipo = 'objeto';  $$ = new Instanceof_CAAS($1,temporalCAAS,yylineno);}
+    ;
+
+TIPO
+    : entero    {$$ = new Object();$$.TipoDato = 'entero'; $$.Tipo = 'valor';}
+    | decimal   {$$ = new Object();$$.TipoDato = 'decimal'; $$.Tipo = 'valor';}
+    | caracter  {$$ = new Object();$$.TipoDato = 'caracter'; $$.Tipo = 'valor';}
+    | booleano  {$$ = new Object();$$.TipoDato = 'booleano'; $$.Tipo = 'valor';}
+    | cadena    {$$ = new Object();$$.TipoDato = 'cadena'; $$.Tipo = 'valor';}
+    | void      {$$ = new Object();$$.TipoDato = 'vacio'; $$.Tipo = 'valor';}
     ;
 
 LOGICA 
@@ -522,11 +522,11 @@ TERNARIO
     ;
 
 VALOR
-    : valentero         {$$ = new Valor_CAAS('cadena',Number(yytext),yylineno);}
-    | valdecimal        {$$ = new Valor_CAAS('cadena',Number(yytext),yylineno);}
-    | valcaracter       {$$ = new Valor_CAAS('cadena',yytext,yylineno);}
-    | valverdadero      {$$ = new Valor_CAAS('booleano',true,yylineno);}
-    | valfalso          {$$ = new Valor_CAAS('booleano',false,yylineno);}
+    : valentero         {$$ = new Valor_CAAS('entero',Number(yytext),yylineno);}
+    | valdecimal        {$$ = new Valor_CAAS('decimal',Number(yytext),yylineno);}
+    | valcaracter       {$$ = new Valor_CAAS('caracter',yytext.charCodeAt(1),yylineno);}
+    | valverdadero      {$$ = new Valor_CAAS('booleano',1,yylineno);}
+    | valfalso          {$$ = new Valor_CAAS('booleano',0,yylineno);}
     | valcadena         {$$ = new Valor_CAAS('cadena',yytext,yylineno);}
     | nulo              {$$ = new Valor_CAAS('nulo',null,yylineno);}
     | VARIABLE          {$$ = new Variable_CAAS($1.Identificador,yylineno); }

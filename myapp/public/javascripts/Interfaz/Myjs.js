@@ -94,10 +94,9 @@ $(document).ready(function () {
         var texto = editor.getValue('\n');
         try {            
             var respuesta = parserCAAS.parse(String(texto+"\n"));//Analisis del texto obtenido            
-            //#####  Traduccion a 3D ######
-            //let Inst = new Instrucciones(respuesta,-1);
-            //let Entorno = new Entorno3D(Inst);
-            respuesta.Ejecutar(null);
+            //#####  Traduccion a 3D ######            
+            let Entorno = new Entorno_CAAS(null);
+            respuesta.Ejecutar(Entorno);
             //#########################
         } catch (error) {
             alert('Ocurrio un error '+error);
