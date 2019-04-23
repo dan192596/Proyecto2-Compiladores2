@@ -217,7 +217,7 @@ function LLamadaMetodo(x,linea) {
     this.Ejecutar = function(EntornoPadre){
         let Instrucciones = EntornoPadre.Instrucciones;
         Instrucciones.EjecutarMetodo(EntornoPadre,this.Identificador);
-        Instrucciones.RecuperarErrores(this.Errores);
+        //Instrucciones.RecuperarErrores(this.Errores);
     };
     this.type = function(){
         return 'llamadametodo';
@@ -276,7 +276,6 @@ function SaltoCondicionalVerdadero(x,y,linea){
             return false;
         }
         if(ValRelacional){
-            this.Salto.Ejecutar(EntornoPadre);
             return true;
         }else{
             return false;
@@ -312,7 +311,6 @@ function SaltoCondicionalFalso(x,y,linea) {
         if(ValRelacional){
             return false;
         }else{
-            this.Salto.Ejecutar(EntornoPadre);
             return true;
         }
     };
@@ -334,9 +332,7 @@ function SaltoIncondicional(x,linea) {
         ErroresPadre.AgregarErrores(this.Errores);
     };
     this.Ejecutar = function(EntornoPadre){
-        let Instrucciones = EntornoPadre.Instrucciones;
-        Instrucciones.EjecutarSalto(EntornoPadre,this.Etiqueta);
-        Instrucciones.RecuperarErrores(this.Errores);
+        
     };
     this.type = function(){
         return 'saltoincondicional';
@@ -419,14 +415,25 @@ function Instrucciones(lista,linea) {
         }
     };
     this.Ejecutar = function(EntornoPadre){
+        let EtiquetaEncontrada = true;
+        let EtiquetaBuscada = '';
         for(let i=0;i<this.Lista.length;i++){
-            if(this.Lista[i].type()=='saltocondicionalverdadero'||this.Lista[i].type()=='saltocondicionalfalso'){
-                if(this.Lista[i].Ejecutar(EntornoPadre)){//Retorna true si hizo salto y false si no
-                    break;//Si realizo el salto detengo el for y si no lo realizo debo seguir normal
+            if((this.Lista[i].type()=='saltocondicionalverdadero'||this.Lista[i].type()=='saltocondicionalfalso')&&EtiquetaEncontrada){
+                if(this.Lista[i].Ejecutar(EntornoPadre)){//Retorna true si hara el  salto y false si no
+                    EtiquetaBuscada = this.Lista[i].Salto.Etiqueta;
+                    EtiquetaEncontrada = false;
+                    i = -1;//Paravolver a recorrerlo desde el principio
                 }
-            }else if(this.Lista[i].type()=='saltoincondicional'){
-                break;
-            }else{                
+            }else if(this.Lista[i].type()=='saltoincondicional'&&EtiquetaEncontrada){
+                EtiquetaBuscada = this.Lista[i].Etiqueta;
+                EtiquetaEncontrada = false;
+                i = -1;
+            }else if(this.Lista[i].type()=='salto'&&!EtiquetaEncontrada){
+                if(this.Lista[i].Etiqueta==EtiquetaBuscada){
+                    EtiquetaEncontrada = true;
+                    EtiquetaBuscada = '';
+                }
+            }else if(EtiquetaEncontrada){
                 this.Lista[i].Ejecutar(EntornoPadre);
             }
         }
@@ -440,27 +447,6 @@ function Instrucciones(lista,linea) {
                     break;
                 }
             }            
-        }
-    };
-    this.EjecutarSalto = function(EntornoPadre,Etiqueta){
-        let SaltoEncontrado = false;
-        for(let i=0;i<this.Lista.length;i++){
-            if(this.Lista[i].type()=='salto'){
-                if(this.Lista[i].Etiqueta==Etiqueta){
-                    SaltoEncontrado = true;
-                }
-            }
-            if(SaltoEncontrado){
-                if(this.Lista[i].type()=='saltocondicionalverdadero'||this.Lista[i].type()=='saltocondicionalfalso'){
-                    if(this.Lista[i].Ejecutar(EntornoPadre)){//Retorna true si hizo salto y false si no
-                        break;//Si realizo el salto detengo el for y si no lo realizo debo seguir normal
-                    }
-                }else if(this.Lista[i].type()=='saltoincondicional'){
-                    break;
-                }else{                
-                    this.Lista[i].Ejecutar(EntornoPadre);
-                }
-            }
         }
     };
     this.type = function(){

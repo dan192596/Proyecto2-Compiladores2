@@ -13,12 +13,12 @@ NumeroDecimal [0-9]+"."[0-9]+
 Caracter      [\'\‘].[\'\’]
 BooleanoV     "true"
 BooleanoF     "false"
-Cadena        [\"\“\”](.|\n|\s|\t|\r)*[\"\“\”]
+Cadena        [\"\“\”][^\"\“\”]*[\"\“\”]
 
 Identificador [A-Za-z_][A-Za-z_0-9]*
 
 comentariounilinea "/""/".*(\r|\n|\r\n)
-comentariomultilinea \/\*(.|\n|\s|\t|\r)*\*\/
+comentariomultilinea \/\*.*?\*\/
 
 %%
 
@@ -203,10 +203,10 @@ IMPORTACION
 // ###################################  
 
 DECLARACIONCLASE
-    : MODIFICADORES class identificador BLOQUEINSTRUCCIONESCLASE          { $$ = new DeclaracionClase_CAAS($1,$3,false,$4,yylineno);}
-    | MODIFICADORES class identificador extends BLOQUEINSTRUCCIONESCLASE  { $$ = new DeclaracionClase_CAAS($1,$3,true,$5,yylineno);}
-    | class identificador BLOQUEINSTRUCCIONESCLASE          { $$ = new DeclaracionClase_CAAS([],$2,false,$3,yylineno);}
-    | class identificador extends BLOQUEINSTRUCCIONESCLASE  { $$ = new DeclaracionClase_CAAS([],$2,true,$4,yylineno);}
+    : MODIFICADORES class identificador BLOQUEINSTRUCCIONESCLASE          { $$ = new DeclaracionClase_CAAS($1,$3,false,$4,null,yylineno);}
+    | MODIFICADORES class identificador extends identificador BLOQUEINSTRUCCIONESCLASE  { $$ = new DeclaracionClase_CAAS($1,$3,true,$6,$5,yylineno);}
+    | class identificador BLOQUEINSTRUCCIONESCLASE          { $$ = new DeclaracionClase_CAAS([],$2,false,$3,null,yylineno);}
+    | class identificador extends identificador BLOQUEINSTRUCCIONESCLASE  { $$ = new DeclaracionClase_CAAS([],$2,true,$5,$4,yylineno);}
     ;
 
 BLOQUEINSTRUCCIONESCLASE
@@ -232,7 +232,7 @@ BLOQUEINSTRUCCIONES
     ;
 
 INSTRUCCIONES
-    : INSTRUCCIONES INSTRUCCION {$$ = $1; $$.push($1);}
+    : INSTRUCCIONES INSTRUCCION {$$ = $1; $$.push($2);}
     | INSTRUCCION               {$$ = []; $$.push($1);}
     ;
 
@@ -282,7 +282,7 @@ SENTENCIAWHILE
 
 SENTENCIATRYCATCH
     : try BLOQUEINSTRUCCIONES catch '(' TIPO identificador ')' BLOQUEINSTRUCCIONES      { $$ = new TryCatch_CAAS($2,$5,$6,$8,yylineno);}
-    | try BLOQUEINSTRUCCIONES catch '(' VARIABLE identificador ')' BLOQUEINSTRUCCIONES  { $$ = new TryCatch_CAAS($2,$5.Identificador,$6,$8,yylineno);}
+    | try BLOQUEINSTRUCCIONES catch '(' VARIABLE identificador ')' BLOQUEINSTRUCCIONES  { $$ = new TryCatch_CAAS($2,$5,$6,$8,yylineno);}
     ;
 
 SENTENCIATHROW
@@ -332,21 +332,21 @@ ASIGNACIONVARIABLE
 
 DECLARACIONVARIABLE
     : MODIFICADORES TIPO LISTADECLARACIONVARIABLES        {$$ = new DeclaracionVariable_CAAS($1,$2,$3,yylineno); }
-    | MODIFICADORES VARIABLE LISTADECLARACIONVARIABLES    {$$ = new DeclaracionVariable_CAAS($1,$2.Identificador,$3,yylineno);}
+    | MODIFICADORES VARIABLE LISTADECLARACIONVARIABLES    {$$ = new DeclaracionVariable_CAAS($1,$2,$3,yylineno);}
     | TIPO LISTADECLARACIONVARIABLES        {$$ = new DeclaracionVariable_CAAS([],$1,$2,yylineno); }
-    | VARIABLE LISTADECLARACIONVARIABLES    {$$ = new DeclaracionVariable_CAAS([],$1.Identificador,$2,yylineno);}
+    | VARIABLE LISTADECLARACIONVARIABLES    {$$ = new DeclaracionVariable_CAAS([],$1,$2,yylineno);}
     | DECLARACIONVARIABLELINKEDLIST {$$ = $1;}
     ;
 
 DECLARACIONVARIABLELINKEDLIST
     : MODIFICADORES linkedlist menor TIPO mayor identificador '=' E       {$$ = new DeclaracionLinkedList_CAAS($1,$4,$6,$8,yylineno);}
     | MODIFICADORES linkedlist menor TIPO mayor identificador             {$$ = new DeclaracionLinkedList_CAAS($1,$4,$6,undefined,yylineno);}
-    | MODIFICADORES linkedlist menor VARIABLE mayor identificador '=' E   {$$ = new DeclaracionLinkedList_CAAS($1,$4.Identificador,$6,$8,yylineno);}
-    | MODIFICADORES linkedlist menor VARIABLE mayor identificador         {$$ = new DeclaracionLinkedList_CAAS($1,$4.Identificador,$6,undefined,yylineno);}
+    | MODIFICADORES linkedlist menor VARIABLE mayor identificador '=' E   {$$ = new DeclaracionLinkedList_CAAS($1,$4,$6,$8,yylineno);}
+    | MODIFICADORES linkedlist menor VARIABLE mayor identificador         {$$ = new DeclaracionLinkedList_CAAS($1,$4,$6,undefined,yylineno);}
     | linkedlist menor TIPO mayor identificador '=' E       {$$ = new DeclaracionLinkedList_CAAS([],$3,$5,$7,yylineno);}
     | linkedlist menor TIPO mayor identificador             {$$ = new DeclaracionLinkedList_CAAS([],$3,$5,undefined,yylineno);}
-    | linkedlist menor VARIABLE mayor identificador '=' E   {$$ = new DeclaracionLinkedList_CAAS([],$3.Identificador,$5,$7,yylineno);}
-    | linkedlist menor VARIABLE mayor identificador         {$$ = new DeclaracionLinkedList_CAAS([],$3.Identificador,$5,undefined,yylineno);}
+    | linkedlist menor VARIABLE mayor identificador '=' E   {$$ = new DeclaracionLinkedList_CAAS([],$3,$5,$7,yylineno);}
+    | linkedlist menor VARIABLE mayor identificador         {$$ = new DeclaracionLinkedList_CAAS([],$3,$5,undefined,yylineno);}
     ;
 
 LISTADECLARACIONVARIABLES
@@ -362,12 +362,12 @@ SUBDECLARACION
 DECLARACIONMETODO
     : MODIFICADORES TIPO RECURSIVIDADARREGLO DECLARADORMETODO     {$$ = new DeclaracionMetodo_CAAS($1,$2, $4.Identificador,$3,$4.Parametros,$4.Instrucciones,yylineno);}
     | MODIFICADORES TIPO DECLARADORMETODO                         {$$ = new DeclaracionMetodo_CAAS($1,$2, $3.Identificador,0 ,$3.Parametros,$3.Instrucciones,yylineno);}
-    | MODIFICADORES VARIABLE RECURSIVIDADARREGLO DECLARADORMETODO {$$ = new DeclaracionMetodo_CAAS($1,$2.Identificador, $4.Identificador,$3,$4.Parametros,$4.Instrucciones,yylineno);}
-    | MODIFICADORES VARIABLE DECLARADORMETODO                     {$$ = new DeclaracionMetodo_CAAS($1,$2.Identificador, $3.Identificador,0 ,$3.Parametros,$3.Instrucciones,yylineno);}
-    | TIPO RECURSIVIDADARREGLO DECLARADORMETODO     {$$ = new DeclaracionMetodo_CAAS([],$1,$3.Identificador,$2,$3.Parametros,$3.Instrucciones,yylineno);}
-    | TIPO DECLARADORMETODO                         {$$ = new DeclaracionMetodo_CAAS([],$1,$2.Identificador,0 ,$2.Parametros,$2.Instrucciones,yylineno);}
-    | VARIABLE RECURSIVIDADARREGLO DECLARADORMETODO {$$ = new DeclaracionMetodo_CAAS([],$1.Identificador, $3.Identificador,$2,$3.Parametros,$3.Instrucciones,yylineno);}
-    | VARIABLE DECLARADORMETODO                     {$$ = new DeclaracionMetodo_CAAS([],$1.Identificador, $2.Identificador,0 ,$2.Parametros,$2.Instrucciones,yylineno);}
+    | MODIFICADORES VARIABLE RECURSIVIDADARREGLO DECLARADORMETODO {$$ = new DeclaracionMetodo_CAAS($1,$2, $4.Identificador,$3,$4.Parametros,$4.Instrucciones,yylineno);}
+    | MODIFICADORES VARIABLE DECLARADORMETODO                     {$$ = new DeclaracionMetodo_CAAS($1,$2, $3.Identificador,0 ,$3.Parametros,$3.Instrucciones,yylineno);}
+    | TIPO RECURSIVIDADARREGLO DECLARADORMETODO     {$$ = new DeclaracionMetodo_CAAS([],$1, $3.Identificador,$2,$3.Parametros,$3.Instrucciones,yylineno);}
+    | TIPO DECLARADORMETODO                         {$$ = new DeclaracionMetodo_CAAS([],$1, $2.Identificador,0 ,$2.Parametros,$2.Instrucciones,yylineno);}
+    | VARIABLE RECURSIVIDADARREGLO DECLARADORMETODO {$$ = new DeclaracionMetodo_CAAS([],$1, $3.Identificador,$2,$3.Parametros,$3.Instrucciones,yylineno);}
+    | VARIABLE DECLARADORMETODO                     {$$ = new DeclaracionMetodo_CAAS([],$1, $2.Identificador,0 ,$2.Parametros,$2.Instrucciones,yylineno);}
     ;
 
 RECURSIVIDADARREGLO
@@ -393,9 +393,9 @@ LISTAPARAMETROS
 
 PARAMETRO
     : MODIFICADORES TIPO SUBDECLARACIONVARIABLE       {$$ = new Object(); $$.Modificadores = $1; $$.Tipo = $2; $$.Identificador = $3.Identificador; $$.CantidadDimensiones = $3.CantidadDimensiones;}
-    | MODIFICADORES VARIABLE SUBDECLARACIONVARIABLE   {$$ = new Object(); $$.Modificadores = $1; $$.Tipo = $2.Identificador; $$.Identificador = $3.Identificador; $$.CantidadDimensiones = $3.CantidadDimensiones;}
+    | MODIFICADORES VARIABLE SUBDECLARACIONVARIABLE   {$$ = new Object(); $$.Modificadores = $1; $$.Tipo = $2; $$.Identificador = $3.Identificador; $$.CantidadDimensiones = $3.CantidadDimensiones;}
     | TIPO SUBDECLARACIONVARIABLE       {$$ = new Object(); $$.Modificadores = []; $$.Tipo = $1; $$.Identificador = $2.Identificador; $$.CantidadDimensiones = $2.CantidadDimensiones;}
-    | VARIABLE SUBDECLARACIONVARIABLE   {$$ = new Object(); $$.Modificadores = []; $$.Tipo = $1.Identificador; $$.Identificador = $2.Identificador; $$.CantidadDimensiones = $2.CantidadDimensiones;}
+    | VARIABLE SUBDECLARACIONVARIABLE   {$$ = new Object(); $$.Modificadores = []; $$.Tipo = $1; $$.Identificador = $2.Identificador; $$.CantidadDimensiones = $2.CantidadDimensiones;}
     ;
 
 SUBDECLARACIONVARIABLE
@@ -441,45 +441,45 @@ EXPARENTESIS
 
 CASTEOEXPLICITO
     : '(' TIPO ')'  E           {$$ = new CasteoExplicitoBasico_CAAS($2, $4); }
-    | '(' E ')' E %prec PROCASTEOEXPLICITO {temporalCAAS = new Object();temporalCAAS.TipoDato = $3.Identificador; temporalCAAS.Tipo = 'objeto';$$ = new CasteoExplicitoVariable_CAAS(temporalCAAS, $4); }
+    | '(' E ')' E %prec PROCASTEOEXPLICITO {temporalCAAS = new Object();temporalCAAS.TipoDato = $3.Identificador; temporalCAAS.Tipo = 'objeto';$$ = new CasteoExplicitoVariable_CAAS(temporalCAAS, $4); }//falta
     | str EXPARENTESIS          {$$ = new ToStr_CAAS($2,yylineno); }
     | toDouble EXPARENTESIS     {$$ = new ToDouble_CAAS($2,yylineno); }
     | toInt EXPARENTESIS        {$$ = new ToInt_CAAS($2,yylineno); }
     | toChar EXPARENTESIS       {$$ = new ToChar_CAAS($2,yylineno); }
     ;
 
-CREACIONINSTANCIA
-    : 'new' VARIABLE '(' LISTAVALORESOPCIONAL ')'   {$$ = new NuevoObjeto_CAAS($2.Identificador,$4,yylineno);}
-    | RECURSIVIDADTIPOARREGLOTIPO           {$$ = new NuevoArregloTipo_CAAS($1.Identificador, $1.Dimensiones,yylineno);}
-    | 'new' VARIABLEARREGLO                 {$$ = new NuevoArregloObjeto_CAAS($2.Identificador, $2.Dimensiones,yylineno);}
-    | 'new' linkedlist menor mayor '(' ')'  {$$ = new NuevoLinkedList_CAAS(yylineno); }
+CREACIONINSTANCIA //falta todo
+    : 'new' VARIABLE '(' LISTAVALORESOPCIONAL ')'   {$$ = new NuevoObjeto_CAAS($2,$4,yylineno);}
+    | RECURSIVIDADTIPOARREGLOTIPO                   {$$ = new NuevoArregloTipo_CAAS($1.Identificador, $1.Dimensiones,yylineno);}
+    | 'new' VARIABLEARREGLO                         {$$ = new NuevoArregloObjeto_CAAS($2.Identificador, $2.Dimensiones,yylineno);}
+    | 'new' linkedlist menor mayor '(' ')'          {$$ = new NuevoLinkedList_CAAS(yylineno); }
     ;
 
-RECURSIVIDADTIPOARREGLOTIPO
+RECURSIVIDADTIPOARREGLOTIPO //falta todo
     : RECURSIVIDADTIPOARREGLOTIPO '[' E ']' {$$ = $1; $$.Dimensiones = []; $$.Dimensiones.push($3); }
     | 'new' TIPO '[' E ']'                  {$$ = new Object(); $$.Identificador = []; $$.Identificador.push($2); $$.Dimensiones = []; $$.Dimensiones.push($4);}
     ;
 
-GRAFICAR
+GRAFICAR //falta todo
     : graph '(' E coma E ')' {$$ = new Graph_CAAS($3,$5,yylineno);}
     ;
 
-LEERARCHIVO
+LEERARCHIVO //falta todo
     : read_file EXPARENTESIS {$$ = new ReadFile_CAAS($2,yylineno);}
     ;
 
-ESCRIBIRARCHIVO
+ESCRIBIRARCHIVO //falta todo
     : write_file '(' E coma E ')' {$$ = new WriteFile_CAAS($3,$5,yylineno);}
     ;
 
 ARITMETICA
-    : E '+' E   {$$ = new Suma_CAAS($1,$3,'+',yylineno); }
+    : E '+' E   {$$ = new Suma_CAAS($1,$3,'+',yylineno);}
     | E '-' E   {$$ = new Resta_CAAS($1,$3,'-',yylineno); }
     | E '*' E   {$$ = new Multiplicacion_CAAS($1,$3,'*',yylineno); }
     | E '/' E   {$$ = new Division_CAAS($1,$3,'/',yylineno); }
     | E '%' E   {$$ = new Modulo_CAAS($1,$3,'%',yylineno); }
     | '-' E %prec UMENOS {$$ = new UnarioMenos_CAAS($2,yylineno);}
-    | '+' E %prec UMAS   {$$ = new UnarioMas_CAAS($2,yylineno);}
+    | '+' E %prec UMAS   {$$ = new UnarioMas_CAAS($2,yylineno);alert('unario');}
     | pow '(' E coma E ')' {$$ = new Potencia_CAAS($3,$5); } 
     ;
 
@@ -491,7 +491,7 @@ RELACIONAL
     | E '<=' E  {$$ = new Relacional_CAAS($1,$3,'<=',yylineno); }
     | E '<' E   {$$ = new Relacional_CAAS($1,$3,'<',yylineno); }
     | E 'instanceof' TIPO       {$$ = new Instanceof_CAAS($1,$3,yylineno);}
-    | E 'instanceof' VARIABLE   {temporalCAAS = new Object();temporalCAAS.TipoDato = $3.Identificador; temporalCAAS.Tipo = 'objeto';  $$ = new Instanceof_CAAS($1,temporalCAAS,yylineno);}
+    | E 'instanceof' VARIABLE   {$3.TipoDato = $3.Identificador; $$ = new Instanceof_CAAS($1,$3,yylineno);}//falta
     ;
 
 TIPO
@@ -510,7 +510,7 @@ LOGICA
     | '!' E     {$$ = new Not_CAAS($2,yylineno);}
     ;
 
-UNARIAS //Siempre debe caer en alguna variable pero puede ser distintos tipos de variable ej: a++, a.a++ a[0]++, a[0].a++ etc
+UNARIAS //Siempre debe caer en alguna variable pero puede ser distintos tipos de variable ej: a++, a.a++ a[0]++, a[0].a++ etc //falta todo
     : E '++'         {$$ = new IncDecPostfijo_CAAS('++',$1,yylineno); }    
     | E '--'         {$$ = new IncDecPostfijo_CAAS('--',$1,yylineno); }    
     | '++' E         {$$ = new IncDecPrefijo_CAAS('++',$2,yylineno); }    
@@ -518,7 +518,7 @@ UNARIAS //Siempre debe caer en alguna variable pero puede ser distintos tipos de
     ;
 
 TERNARIO
-    : E '?' E ':' E {$$ = new Ternario_CAAS($1,$3,$5,yylineno); }
+    : E '?' E ':' E {$$ = new Ternario_CAAS($1,$3,$5,yylineno); }//Falta ver cuando los dos son objetos
     ;
 
 VALOR
@@ -529,39 +529,39 @@ VALOR
     | valfalso          {$$ = new Valor_CAAS('booleano',0,yylineno);}
     | valcadena         {$$ = new Valor_CAAS('cadena',yytext,yylineno);}
     | nulo              {$$ = new Valor_CAAS('nulo',null,yylineno);}
-    | VARIABLE          {$$ = new Variable_CAAS($1.Identificador,yylineno); }
-    | LLAMADAFUNCION    {$$ = $1; }
-    | ARREGLO           {$$ = $1; }
+    | VARIABLE          {$$ = new Variable_CAAS($1.Identificador,yylineno); }//falta
+    | LLAMADAFUNCION    {$$ = $1; }//falta
+    | ARREGLO           {$$ = $1; }//falta
     ;
 
-LLAMADAFUNCION
+LLAMADAFUNCION //falta todo
     : VARIABLE '(' LISTAVALORESOPCIONAL ')' { $$ = new LlamadaFuncion_CAAS($1.Identificador, $3,yylineno); }
     ;
 
-ARREGLO
+ARREGLO //falta
     : '[' LISTAVALORESOPCIONAL ']' {$$ = $2; }
     | VARIABLEARREGLO  {$$ = new VariableArreglo_CAAS($1.Identificador, $1.Dimensiones,yylineno);}  
     ;
 
-VARIABLEARREGLO
+VARIABLEARREGLO //falta
     : VARIABLEARREGLO '[' E ']'     {$$ = $1; $$.Dimensiones.push($3); }
-    | VARIABLE '[' E ']'            {$$ = $1; $$.Dimensiones = []; $$.Dimensiones.push($3); }
+    | VARIABLE '[' E ']'            {$$ = $1; $$.Dimensiones = []; $$.Dimensiones.push($3); $$.TipoDato = $$.Identificador; }
     ;
 
-VARIABLE
+VARIABLE 
     : VARIABLE '.' super            {$$ = $1; $$.Identificador.push($1); }
     | VARIABLE '.' identificador    {$$ = $1; $$.Identificador.push($1); }
-    | identificador                 {$$ = new Object(); $$.Identificador = []; $$.Identificador.push($1); }
-    | super                         {$$ = new Object(); $$.Identificador = []; $$.Identificador.push($1); }
-    | this                          {$$ = new Object(); $$.Identificador = []; $$.Identificador.push($1); }
+    | identificador                 {$$ = new Object(); $$.Identificador = []; $$.Identificador.push($1); $$.Tipo='objeto'; }
+    | super                         {$$ = new Object(); $$.Identificador = []; $$.Identificador.push($1); $$.Tipo='objeto'; }
+    | this                          {$$ = new Object(); $$.Identificador = []; $$.Identificador.push($1); $$.Tipo='objeto'; }
     ;
 
-LISTAVALORESOPCIONAL
-    :  {$$ = new ListaValores_CAAS([],yylineno);}
-    | LISTAVALORES { $$ = new ListaValores_CAAS($1,yylineno);}
+LISTAVALORESOPCIONAL //falta
+    :  {$$ = [];}
+    | LISTAVALORES { $$ = $1;}
     ;
 
-LISTAVALORES
-    : LISTAVALORES coma E   {$$ = $1; $$.push($2); }
+LISTAVALORES //falta
+    : LISTAVALORES coma E   {$$ = $1; $$.push($3); }
     | E                     {$$ = [];$$.push($1); }
     ;

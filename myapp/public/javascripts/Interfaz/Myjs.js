@@ -95,7 +95,7 @@ $(document).ready(function () {
         try {            
             var respuesta = parserCAAS.parse(String(texto+"\n"));//Analisis del texto obtenido            
             //#####  Traduccion a 3D ######            
-            let Entorno = new Entorno_CAAS(null);
+            let Entorno = new Entorno_CAAS();
             respuesta.Ejecutar(Entorno);
             //#########################
         } catch (error) {
@@ -141,7 +141,7 @@ $(document).ready(function () {
         lineNumbers: false,
         readOnly:true
         });
-        consola_201404268.setSize("1110","200");
+        consola_201404268.setSize("1110","300");
       //INICIALIZAR ERRORES
           errores_201404268 = CodeMirror(document.getElementById("errores"),{
             mode: "text/x-java",
@@ -149,7 +149,7 @@ $(document).ready(function () {
             lineNumbers: false,
             readOnly:true
           });
-          errores_201404268.setSize("1110","200");
+          errores_201404268.setSize("1110","300");
     //################################
     //## MANEJO DE ACCIONES DE MENU ##
     //################################

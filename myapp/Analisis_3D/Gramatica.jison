@@ -12,7 +12,7 @@ charterminale [\"\“\”\'\‘]\%"e"[\"\“\”\'\’]
 charterminald [\"\“\”\'\‘]\%"d"[\"\“\”\'\’]
 
 comentariounilinea "/""/".*(\r|\n|\r\n)
-comentariomultilinea \/\*(.|\n|\s|\t|\r)*\*\/
+comentariomultilinea \/\*.*?\*\/
 
 %%
 
@@ -46,6 +46,10 @@ comentariomultilinea \/\*(.|\n|\s|\t|\r)*\*\/
 "}"     {return 'llaveder';}
 ":"     {return 'dospuntos';}
 "="     {return 'igual';}
+"P"     {return 'punteroStack';}
+"p"     {return 'punteroStack';}
+"H"     {return 'punteroHeap';}
+"h"     {return 'punteroHeap';}
 
 //PALABRAS RESERVADAS
 "var"   {return 'var';}
@@ -112,6 +116,13 @@ ASIGNACION
     | temporal igual HOJA puntoycoma                        {$$=new Asignacion($1,$3,'temporal',yylineno); }
     | temporal igual heap corizq HOJA corder puntoycoma     {$$=new Asignacion($1,$5,'temporal_heap',yylineno); }
     | temporal igual stack corizq HOJA corder puntoycoma    {$$=new Asignacion($1,$5,'temporal_stack',yylineno); }
+
+    | punteroHeap igual EXPRESION puntoycoma                   {$$=new Asignacion($1,$3,'temporal',yylineno); }
+    | punteroHeap igual HOJA puntoycoma                        {$$=new Asignacion($1,$3,'temporal',yylineno); }    
+
+    | punteroStack igual EXPRESION puntoycoma                   {$$=new Asignacion($1,$3,'temporal',yylineno); }
+    | punteroStack igual HOJA puntoycoma                        {$$=new Asignacion($1,$3,'temporal',yylineno); }
+
     | heap corizq HOJA corder igual EXPRESION puntoycoma    {$$=new Asignacion($3,$6,'heap',yylineno); }
     | heap corizq HOJA corder igual HOJA puntoycoma         {$$=new Asignacion($3,$6,'heap',yylineno); }
     | stack corizq HOJA corder igual EXPRESION puntoycoma   {$$=new Asignacion($3,$6,'stack',yylineno); }
@@ -170,7 +181,11 @@ RELACIONAL
     ;
 
 HOJA 
-    : entero    {$$ = new Numero(Number(yytext),yylineno);}
-    | decimal   {$$ = new Numero(Number(yytext),yylineno);}    
-    | temporal  {$$ = new Temporal(yytext,yylineno);}
+    : entero       {$$ = new Numero(Number(yytext),yylineno);}
+    | decimal      {$$ = new Numero(Number(yytext),yylineno);}
+    | resta entero       {$$ = new Numero(Number(yytext)*-1,yylineno);}
+    | resta decimal      {$$ = new Numero(Number(yytext)*-1,yylineno);}
+    | temporal     {$$ = new Temporal(yytext,yylineno);}
+    | punteroHeap  {$$ = new Temporal(yytext,yylineno);}
+    | punteroStack {$$ = new Temporal(yytext,yylineno);}
     ;

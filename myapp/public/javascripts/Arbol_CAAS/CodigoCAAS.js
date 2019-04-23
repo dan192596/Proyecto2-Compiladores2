@@ -6,7 +6,7 @@ function BloquePrincipal_CAAS(x,linea){
     this.Instrucciones = x;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Importacion',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Hilo principal',this.linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
@@ -15,9 +15,21 @@ function BloquePrincipal_CAAS(x,linea){
         }
     };
     this.Ejecutar = function(EntornoPadre){
+        let Texto = '';
+        Texto += 'P = 0;'
+        Texto += '\nH = 0;'
+        let Ambito = [];
         for(let i = 0;i <this.Instrucciones.length;i++){
-            this.Instrucciones[i].Ejecutar(EntornoPadre);
+            if(this.Instrucciones[i].type()=='declaracion_clase'){
+                this.Instrucciones[i].PrimeraPasada(EntornoPadre,Ambito);
+            }
         }
+        for(let i = 0;i <this.Instrucciones.length;i++){
+            Texto += this.Instrucciones[i].Ejecutar(EntornoPadre,Ambito);
+        }
+        Texto += '\ncall main;'
+        Texto += '\ncall main_main;'
+        consola_201404268.setValue(Texto);
     };
     this.type = function(){
         return 'bloque_principal';
@@ -49,15 +61,16 @@ function Importacion_CAAS(x,linea){
         return 'importacion';
     };
 }
-//################################
-//## BLOQUE INSTRUCCIONES CLASE ## 
-//################################
-function DeclaracionClase_CAAS(x,y,z,i,linea){
+//##########################
+//## DECLARACION DE CLASE ## 
+//##########################
+function DeclaracionClase_CAAS(x,y,z,i,extiende,linea){
     this.Linea = linea;
     this.Modificadores = x;
     this.Nombre = y;
     this.Hereda = z;
     this.BloqueInstrucciones = i;
+    this.Extiende = extiende;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
         this.Errores.Agregar('semantico',descripcion,'Declaracion de clase',this.linea);
@@ -65,27 +78,43 @@ function DeclaracionClase_CAAS(x,y,z,i,linea){
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
     };
-    this.Ejecutar = function(EntornoPadre){
-        let abstract = false;
-        let public = false;
-        let protected = false;
-        let private = false;
+    this.Ejecutar = function(EntornoPadre,Ambito){
+            Ambito.push(this.Nombre);
+            this.BloqueInstrucciones.Ejecutar(EntornoPadre,Ambito,true);
+            return this.BloqueInstrucciones.Ejecutar(EntornoPadre,Ambito,false);
+    };
+    this.PrimeraPasada=function(EntornoPadre,Ambito){
+        let Visibilidad = '';
         let static = false;
-        let final = false;        
-        /*for(let i = 0; i <Modificadores.length;i++){
-            switch(Modificadores[i]){
-                case 'public':if(public){this.AgregarError('Modificador public ya utilizado en declaracion');} public = true; break;
-                case 'protected':if(protected){this.AgregarError('Modificador protected ya utilizado en declaracion');}protected = true;
-                case 'private':if(private){this.AgregarError('Modificador private ya utilizado en declaracion');}private = true;
-                case 'static':if(static){this.AgregarError('Modificador static ya utilizado en declaracion');}static = true;
-                case 'final':if(final){this.AgregarError('Modificador final ya utilizado en declaracion');}final = true;
-                case 'abstract':if(abstract){this.AgregarError('Modificador abstract ya utilizado en declaracion');}abstract = true;
+        let abstract = false;
+        let final = false;
+        let Size = this.BloqueInstrucciones.getSize();        
+        for(let i = 0; i <this.Modificadores.length;i++){
+            switch(this.Modificadores[i]){
+                case 'public':
+                    if(Visibilidad!=''){this.AgregarError('La clase ya posee una visibilidad');} 
+                    Visibilidad = 'public'; 
+                    break;
+                case 'protected':
+                    if(Visibilidad!=''){this.AgregarError('La clase ya posee una visibilidad');} 
+                    Visibilidad = 'protected'; 
+                    break;
+                case 'private':
+                    if(Visibilidad!=''){this.AgregarError('La clase ya posee una visibilidad');} 
+                    Visibilidad = 'private'; 
+                    break;
+                case 'static':if(static){this.AgregarError('Modificador static ya utilizado en declaracion');}static = true;break;
+                case 'final':if(final){this.AgregarError('Modificador final ya utilizado en declaracion');}final = true;break;
+                case 'abstract':if(abstract){this.AgregarError('Modificador abstract ya utilizado en declaracion');}abstract = true;break;
                 default:
                     this.AgregarError('Modificador no permitido para declaracion de una clase');
             }
-        }*/        
-        this.BloqueInstrucciones.Ejecutar(EntornoPadre);
-    };
+        }
+        if(Visibilidad==''){
+            Visibilidad = 'public';
+        }
+        EntornoPadre.AgregarSimbolo(this.Nombre,'clase',null,Size,null,Array.from(Ambito),Visibilidad,static,final,abstract,this.Extiende,0,this.BloqueInstrucciones.getParametros());
+    }
     this.type = function(){
         return 'declaracion_clase';
     };
@@ -100,17 +129,79 @@ function BloqueInstruccionesClase_CAAS(x,linea){
     this.AgregarError = function(descripcion){
         this.Errores.Agregar('semantico',descripcion,'Bloque instrucciones de clase',this.linea);
     };
-    this.RecuperarErrores = function(ErroresPadre){
+    this.RecuperarErrores = function(ErroresPadre){        
         ErroresPadre.AgregarErrores(this.Errores);
         for(let i =0;i<this.Instrucciones.length;i++){
             this.Instrucciones[i].RecuperarErrores(EntornoPadre);
         }
     };
-    this.Ejecutar = function(EntornoPadre){
+    this.Ejecutar = function(EntornoPadre,Ambito,PrimeraPasada){
+        let PosicionRelativaStack = 0;
+        let Texto = '';
+        let TextoDeclaracionesClase = '';        
+        let ValValorTemporal;
+//DECLARO TODAS LAS VARIABLES DE LA CLASE
         for(let i = 0; i <this.Instrucciones.length; i ++){
-            this.Instrucciones[i].Ejecutar(EntornoPadre);
+            if(this.Instrucciones[i].type()=='declaracion_variable'){
+                ValValorTemporal = this.Instrucciones[i].Ejecutar(EntornoPadre,PosicionRelativaStack,Ambito,PrimeraPasada);
+                PosicionRelativaStack = ValValorTemporal.PosicionRelativaStack;
+                TextoDeclaracionesClase += ValValorTemporal.Texto;
+            }
         }
+//TRADUCCION DE LA DECLARACION DE LA CLASE A 3D
+        let NombreAmbito = '';
+        for(let i = 0;i<Ambito.length;i++){
+            if(i == 0){
+                NombreAmbito += Ambito[i];
+            }else{
+                NombreAmbito += '_'+Ambito[i];
+            }
+        }
+        TextoDeclaracionesClase = TextoDeclaracionesClase.replace(/\n/g,"\n\t");
+        TextoDeclaracionesClase = '\nproc '+NombreAmbito+' begin '+TextoDeclaracionesClase+ '\nend';
+        Texto += '\n//Declaracion de la clase '+NombreAmbito;
+        Texto += TextoDeclaracionesClase;
+//RECONOCER LOS METODOS
+        for(let i = 0; i <this.Instrucciones.length; i ++){
+            if(this.Instrucciones[i].type()=='declaracion_variable'){
+                /** Ignoro las declaraciones porque ya las hice antes */
+            }else if(this.Instrucciones[i].type()=='declaracion_metodo'){
+                if(PrimeraPasada){
+                    this.Instrucciones[i].Ejecutar(EntornoPadre,PosicionRelativaStack,Ambito,PrimeraPasada);
+                }else{                    
+                    Texto += this.Instrucciones[i].Ejecutar(EntornoPadre,PosicionRelativaStack,Ambito,PrimeraPasada);
+                }
+            }else{
+                if(PrimeraPasada){
+                    this.Instrucciones[i].Ejecutar(EntornoPadre);
+                }else{
+                    Texto+= this.Instrucciones[i].Ejecutar(EntornoPadre);
+                }
+            }
+        }
+        return Texto;
     };
+    this.getSize = function(){
+        let contador = 0;
+        for(let i = 0; i <this.Instrucciones.length; i ++){
+            if(this.Instrucciones[i].type()=='declaracion_variable'){
+                contador += this.Instrucciones[i].getSize();
+            }
+        }
+        return contador;
+    }
+    this.getParametros=function(){
+        let Parametros = [];
+        Parametros.push([]);
+        for(let i = 0; i <this.Instrucciones.length; i ++){
+            if(this.Instrucciones[i].type()=='declaracion_constructor'){
+                if(this.Instrucciones[i].Parametros.length!=0){
+                    Parametros.push(this.Instrucciones[i].Parametros);
+                }                
+            }
+        }
+        return Parametros;
+    }
     this.type = function(){
         return 'bloque_instrucciones_clase';
     };
@@ -131,11 +222,31 @@ function BloqueInstrucciones_CAAS(x,linea){
             this.Instrucciones[i].RecuperarErrores(EntornoPadre);
         }
     };
-    this.Ejecutar = function(EntornoPadre){
+    this.Ejecutar = function(EntornoPadre,PosicionRelativaStack, Ambito){        
+        let Texto = '';
         for(let i = 0; i <this.Instrucciones.length; i ++){
-            this.Instrucciones[i].Ejecutar(EntornoPadre);
+            if(this.Instrucciones[i].type()=='declaracion_variable'){
+                ValValorTemporal = this.Instrucciones[i].Ejecutar(EntornoPadre,PosicionRelativaStack,Ambito);
+                PosicionRelativaStack = ValValorTemporal.PosicionRelativaStack;
+                Texto += ValValorTemporal.Texto;
+            }else if(this.Instrucciones[i].type()=='llamadafuncion'){
+                ValValorTemporal = this.Instrucciones[i].Ejecutar(EntornoPadre);
+                Texto += ValValorTemporal.Texto;
+            }else{
+                Texto += this.Instrucciones[i].Ejecutar(EntornoPadre);
+            }
         }
+        return Texto;
     };
+    this.getSize = function(){
+        let contador = 0;
+        for(let i = 0; i <this.Instrucciones.length; i ++){
+            if(this.Instrucciones[i].type()=='declaracion_variable'){
+                contador += this.Instrucciones[i].getSize();
+            }
+        }
+        return contador;
+    }
     this.type = function(){
         return 'bloque_instrucciones';
     };
@@ -155,14 +266,79 @@ function Print_CAAS(x,linea){
         ErroresPadre.AgregarErrores(this.Errores);
         this.Valor.RecuperarErrores(ErroresPadre);
     };
-    this.Ejecutar = function(EntornoPadre){
-        let cadena = "";
-        let ValValor = String(this.Valor.Ejecutar(EntornoPadre));
-        for(let i = 0; i<ValValor.length;i++){
-            //Aqui debo meter un temporal, pero como todavia no los tengo pos que se le va a hacer guapo
-            cadena += '\nprint("%c",'+ValValor.charCodeAt(i)+');'
+    this.Ejecutar = function(EntornoPadre){        
+        let Texto = "";
+        let ValValor = this.Valor.Ejecutar(EntornoPadre);        
+        if(ValValor.Tipo == 'valor'){
+            Texto += ValValor.Texto;
+            if(ValValor.TipoDato == 'decimal'){
+                Texto += '\nprint("%d",'+ValValor.Temporal+');'
+            }else if(ValValor.TipoDato =='entero'){
+                Texto += '\nprint("%e",'+ValValor.Temporal+');'
+            }else if(ValValor.TipoDato == 'caracter'){
+                Texto += '\nprint("%c",'+ValValor.Temporal+');'
+            }else if(ValValor.TipoDato =='booleano'){
+                let EtiquetaVerdadero = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+                let EtiquetaFalso = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+                let EtiquetaSalida = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+                Texto += '\nif('+ValValor.Temporal +' == 1) goto '+EtiquetaVerdadero+';'
+                Texto += '\ngoto '+EtiquetaFalso+';';
+                Texto += '\n'+EtiquetaVerdadero+':';
+                Texto += '\nprint("%c",116);//t';
+                Texto += '\nprint("%c",114);//r';
+                Texto += '\nprint("%c",117);//u';
+                Texto += '\nprint("%c",101);//e';
+                Texto +=  '\ngoto '+EtiquetaSalida+';';
+                Texto += '\n'+EtiquetaFalso+':';
+                Texto += '\nprint("%c",102);//f';
+                Texto += '\nprint("%c",97);//a';
+                Texto += '\nprint("%c",108);//l';
+                Texto += '\nprint("%c",115);//s';
+                Texto += '\nprint("%c",101);//e';
+                Texto += '\n'+EtiquetaSalida+':';
+            }else if(ValValor.TipoDato == 'cadena'){
+                let EtiquetaRetorno = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+                let EtiquetaSalida = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+                let EtiquetaEntero = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+                let EtiquetaDecimal = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+                let TemporalPosicion = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+                let TemporalValor = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+                Texto += '\n'+TemporalPosicion+' = '+ValValor.Temporal+';';
+                Texto += '\n'+TemporalValor+' = 0;';
+                Texto += '\n'+EtiquetaRetorno+':';
+                Texto += '\n'+TemporalValor+' = Heap['+TemporalPosicion+'];'
+                Texto += '\n'+TemporalPosicion+' = '+TemporalPosicion +'+ 1;'
+                Texto += '\nif('+TemporalValor+' == 0) goto '+EtiquetaSalida+';';
+                Texto += '\nif('+TemporalValor+' == -1) goto '+EtiquetaEntero+';';
+                Texto += '\nif('+TemporalValor+' == -2) goto '+EtiquetaDecimal+';';
+                Texto += '\nprint("%c",'+TemporalValor+');'
+                Texto += '\ngoto '+EtiquetaRetorno+';';
+                Texto += '\n'+EtiquetaEntero+':';
+                Texto += '\n'+TemporalValor+' = Heap['+TemporalPosicion+'];'
+                Texto += '\n'+TemporalPosicion+' = '+TemporalPosicion +'+ 1;'
+                Texto += '\nprint("%e",'+TemporalValor+');'                
+                Texto += '\ngoto '+EtiquetaRetorno+';';
+                Texto += '\n'+EtiquetaDecimal+':';
+                Texto += '\n'+TemporalValor+' = Heap['+TemporalPosicion+'];'
+                Texto += '\n'+TemporalPosicion+' = '+TemporalPosicion +'+ 1;'
+                Texto += '\nprint("%d",'+TemporalValor+');';
+                Texto += '\ngoto '+EtiquetaRetorno+';';
+                Texto += '\n'+EtiquetaSalida+':';
+            }else{
+                this.AgregarError('No se puede hacer conversion a tipo decimal desde uno de tipo '+ValValor.TipoDato);
+                return '';
+            }
+        }else{
+            Texto += '\nprint("%c",91);//[';
+            Texto += '\nprint("%c",79);//O';
+            Texto += '\nprint("%c",98);//b';
+            Texto += '\nprint("%c",106);//j';
+            Texto += '\nprint("%c",101);//e';
+            Texto += '\nprint("%c",99);//c';
+            Texto += '\nprint("%c",116);//t';
+            Texto += '\nprint("%c",93);//]';
         }
-        return cadena;
+        return Texto;
     };
     this.type = function(){
         return 'print';
@@ -201,7 +377,7 @@ function Println_CAAS(x,linea){
 //########################
 function ForEach_CAAS(x,y,z,linea){
     this.Linea = linea; 
-    this.Parametro = x;
+    this.Parametros = x;
     this.Arreglo = y;
     this.BloqueInstrucciones = z;
     this.Errores = new Errores3D();
@@ -574,50 +750,41 @@ function AsignacionVariable_CAAS(x,y,linea) {
     };
     this.Ejecutar = function(EntornoPadre){
         let ValValor = this.Valor.Ejecutar(EntornoPadre);
-        
-        /*
-        if(ValValor.TipoDato == 'booleano'){
+        let Ambito = EntornoPadre.getAmbito();
+        let Simbolo =null;
+        if(this.Variable.length==1){
+            Simbolo = EntornoPadre.getSimboloVariable(Ambito,this.Variable[0]);
+        }else{
+            
+        }
+        if(Simbolo==null){
+            this.AgregarError('No se encontro la variable '+this.Variable);
+            return;
+        }
+        if(ValValor.TipoDato=='booleano'&&ValValor.Tipo=='valor'){
             for(let i = 0;i<ValValor.ListaVerdaderos.length;i++){
                 ValValor.Texto += '\n'+ValValor.ListaVerdaderos[i]+':';
             }
-            let NuevoTemporalValValor = 't'+EntornoPadre.Temporales.getNuevoTemporal();
-            ValValor.Temporal = NuevoTemporalValValor;
-            ValValor.Texto+= '\n'+NuevoTemporalValValor+' = 1;';
-            let NuevaEtiquetaSalidaValValor = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
-            ValValor.Texto+= '\ngoto '+NuevaEtiquetaSalidaValValor+';';
+            let NuevoTemporal = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+            ValValor.Temporal = NuevoTemporal;
+            ValValor.Texto+= '\n'+NuevoTemporal+' = 1;';
+            let NuevaEtiquetaSalidaDer = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+            ValValor.Texto+= '\ngoto '+NuevaEtiquetaSalidaDer+';';
             for(let i = 0;i<ValValor.ListaFalsos.length;i++){
                 ValValor.Texto += '\n'+ValValor.ListaFalsos[i]+':';
             }            
-            ValValor.Texto+= '\n'+NuevoTemporalValValor+' = 0;';      
-            ValValor.Texto+= '\n'+NuevaEtiquetaSalidaValValor+':';
-        }*/
+            ValValor.Texto+= '\n'+NuevoTemporal+' = 0;';      
+            ValValor.Texto+= '\n'+NuevaEtiquetaSalidaDer+':';
+        }
+        let Texto = '';
+        Texto += ValValor.Texto;
+        let TemporalPosicionStack = 't'+EntornoPadre.Temporales.getNuevoTemporal();        
+        Texto += '\n'+TemporalPosicionStack+' = P + '+Simbolo.getPosicion()+';';
+        Texto += '\nStack['+TemporalPosicionStack+'] = '+ValValor.Temporal+';';
+        return Texto;
     };
     this.type = function(){
         return 'asignacion_variable';
-    };
-}
-//#############################
-//## DECLARACION DE VARIABLE ## 
-//#############################
-function DeclaracionVariable_CAAS(x,y,z,linea) {
-    this.Linea = linea;    
-    this.Modificadores = x;
-    this.Tipo = y;
-    this.ListaSubDeclaraciones = z;    
-    this.Errores = new Errores3D();
-    this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Declaracion variable',this.linea);
-    };
-    this.RecuperarErrores = function(ErroresPadre){
-        ErroresPadre.AgregarErrores(this.Errores);
-    };
-    this.Ejecutar = function(EntornoPadre){
-        for(let i =0;i<this.ListaSubDeclaraciones.length;i++){
-            this.ListaSubDeclaraciones[i].Ejecutar(EntornoPadre);
-        }
-    };
-    this.type = function(){
-        return 'declaracion_variable';
     };
 }
 //###############################
@@ -643,6 +810,71 @@ function DeclaracionLinkedList_CAAS(x,y,z,valor,linea) {
         return 'declaracion_linkedlist';
     };
 }
+//#############################
+//## DECLARACION DE VARIABLE ## 
+//#############################
+function DeclaracionVariable_CAAS(x,y,z,linea) {
+    this.Linea = linea;    
+    this.Modificadores = x;
+    this.Tipo = y;
+    this.ListaSubDeclaraciones = z;    
+    this.Errores = new Errores3D();
+    this.AgregarError = function(descripcion){
+        this.Errores.Agregar('semantico',descripcion,'Declaracion variable',this.linea);
+    };
+    this.RecuperarErrores = function(ErroresPadre){
+        ErroresPadre.AgregarErrores(this.Errores);
+    };
+    this.Ejecutar = function(EntornoPadre,PosicionRelativaStack,Ambito,PrimeraPasada){
+        let Visibilidad = '';
+        let static = false;
+        let abstract = false;
+        let final = false;        
+        for(let i = 0; i <this.Modificadores.length;i++){
+            switch(this.Modificadores[i]){
+                case 'public':
+                    if(Visibilidad!=''){this.AgregarError('La clase ya posee una visibilidad');} 
+                    Visibilidad = 'public'; 
+                    break;
+                case 'protected':
+                    if(Visibilidad!=''){this.AgregarError('La clase ya posee una visibilidad');} 
+                    Visibilidad = 'protected'; 
+                    break;
+                case 'private':
+                    if(Visibilidad!=''){this.AgregarError('La clase ya posee una visibilidad');} 
+                    Visibilidad = 'private'; 
+                    break;
+                case 'static':if(static){this.AgregarError('Modificador static ya utilizado en declaracion');}static = true;break;
+                case 'final':if(final){this.AgregarError('Modificador final ya utilizado en declaracion');}final = true;break;
+                default:
+                    this.AgregarError('Modificador '+this.Modificadores[i]+ ' no permitido para declaracion de un campo');
+            }
+        }
+        if(Visibilidad==''){
+            Visibilidad = 'public';
+        }
+        let Texto = '';
+        let SubTexto = '';
+        for(let i =0;i<this.ListaSubDeclaraciones.length;i++){
+            SubTexto = this.ListaSubDeclaraciones[i].Ejecutar(EntornoPadre,this.Tipo,Visibilidad,static,final,abstract,PosicionRelativaStack,Ambito,PrimeraPasada);
+            if(SubTexto!=undefined){
+                Texto+=SubTexto;
+            }
+            PosicionRelativaStack++;
+        }
+        let ValRetorno = new Object();
+        ValRetorno.PosicionRelativaStack = PosicionRelativaStack;
+        ValRetorno.Texto = Texto;
+        consola_201404268.setValue(Texto);
+        return ValRetorno;
+    };
+    this.getSize = function(){
+        return this.ListaSubDeclaraciones.length;
+    }
+    this.type = function(){
+        return 'declaracion_variable';
+    };
+}
 //##############################
 //## SUB DECLARACION VARIABLE ## 
 //##############################
@@ -658,24 +890,67 @@ function SubDeclaracionVariable_CAAS(x,y,z,linea) {
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
     };
-    this.Ejecutar = function(EntornoPadre,tipo){
-        let ValValor = this.Valor.Ejecutar(EntornoPadre);
-        if(ValValor.TipoDato == 'booleano'){
-            for(let i = 0;i<ValValor.ListaVerdaderos.length;i++){
-                ValValor.Texto += '\n'+ValValor.ListaVerdaderos[i]+':';
+    this.Ejecutar = function(EntornoPadre,TipoDato,Visibilidad,static,final,abstract,PosicionRelativaStack,Ambito,PrimeraPasada){
+        
+        if(PrimeraPasada==undefined){
+            if(this.Dimensiones == 0){
+                EntornoPadre.AgregarSimbolo(this.Identificador,'variable',TipoDato,1,PosicionRelativaStack,Array.from(Ambito),Visibilidad,static,final,abstract,false,0,null);
+            }else{//Debo inicializar el arreglo con 0 elementos en heap, en un rato lo hago :v
+                EntornoPadre.AgregarSimbolo(this.Identificador,'arreglo',TipoDato,1,PosicionRelativaStack,Array.from(Ambito),Visibilidad,static,final,abstract,false,this.Dimensiones,null);
             }
-            let NuevoTemporalValValor = 't'+EntornoPadre.Temporales.getNuevoTemporal();
-            ValValor.Temporal = NuevoTemporalValValor;
-            ValValor.Texto+= '\n'+NuevoTemporalValValor+' = 1;';
-            let NuevaEtiquetaSalidaValValor = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
-            ValValor.Texto+= '\ngoto '+NuevaEtiquetaSalidaValValor+';';
-            for(let i = 0;i<ValValor.ListaFalsos.length;i++){
-                ValValor.Texto += '\n'+ValValor.ListaFalsos[i]+':';
-            }            
-            ValValor.Texto+= '\n'+NuevoTemporalValValor+' = 0;';      
-            ValValor.Texto+= '\n'+NuevaEtiquetaSalidaValValor+':';
+            if(this.Valor!=undefined){
+                let ValValor = this.Valor.Ejecutar(EntornoPadre);
+                if(ValValor.TipoDato == 'booleano'){
+                    for(let i = 0;i<ValValor.ListaVerdaderos.length;i++){
+                        ValValor.Texto += '\n'+ValValor.ListaVerdaderos[i]+':';
+                    }
+                    let NuevoTemporalValValor = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+                    ValValor.Temporal = NuevoTemporalValValor;
+                    ValValor.Texto+= '\n'+NuevoTemporalValValor+' = 1;';
+                    let NuevaEtiquetaSalidaValValor = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+                    ValValor.Texto+= '\ngoto '+NuevaEtiquetaSalidaValValor+';';
+                    for(let i = 0;i<ValValor.ListaFalsos.length;i++){
+                        ValValor.Texto += '\n'+ValValor.ListaFalsos[i]+':';
+                    }            
+                    ValValor.Texto+= '\n'+NuevoTemporalValValor+' = 0;';      
+                    ValValor.Texto+= '\n'+NuevaEtiquetaSalidaValValor+':';
+                }
+                let NuevoTemporalValValor = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+                ValValor.Texto += '\n'+NuevoTemporalValValor+' = P + '+PosicionRelativaStack+';'
+                ValValor.Texto += '\nStack['+NuevoTemporalValValor+'] = '+ValValor.Temporal+';'
+                return ValValor.Texto;
+            }
+        }else if(PrimeraPasada){
+            if(this.Dimensiones == 0){
+                EntornoPadre.AgregarSimbolo(this.Identificador,'variable',TipoDato,1,PosicionRelativaStack,Array.from(Ambito),Visibilidad,static,final,abstract,false,0,null);
+            }else{//Debo inicializar el arreglo con 0 elementos en heap, en un rato lo hago :v
+                EntornoPadre.AgregarSimbolo(this.Identificador,'arreglo',TipoDato,1,PosicionRelativaStack,Array.from(Ambito),Visibilidad,static,final,abstract,false,this.Dimensiones,null);
+            }
+        }else{
+            if(this.Valor!=undefined){
+                let ValValor = this.Valor.Ejecutar(EntornoPadre);
+                if(ValValor.TipoDato == 'booleano'){
+                    for(let i = 0;i<ValValor.ListaVerdaderos.length;i++){
+                        ValValor.Texto += '\n'+ValValor.ListaVerdaderos[i]+':';
+                    }
+                    let NuevoTemporalValValor = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+                    ValValor.Temporal = NuevoTemporalValValor;
+                    ValValor.Texto+= '\n'+NuevoTemporalValValor+' = 1;';
+                    let NuevaEtiquetaSalidaValValor = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+                    ValValor.Texto+= '\ngoto '+NuevaEtiquetaSalidaValValor+';';
+                    for(let i = 0;i<ValValor.ListaFalsos.length;i++){
+                        ValValor.Texto += '\n'+ValValor.ListaFalsos[i]+':';
+                    }            
+                    ValValor.Texto+= '\n'+NuevoTemporalValValor+' = 0;';      
+                    ValValor.Texto+= '\n'+NuevaEtiquetaSalidaValValor+':';
+                }
+                let NuevoTemporalValValor = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+                ValValor.Texto += '\n'+NuevoTemporalValValor+' = P + '+PosicionRelativaStack+';'
+                ValValor.Texto += '\nStack['+NuevoTemporalValValor+'] = '+ValValor.Temporal+';'
+                return ValValor.Texto;
+            }
         }
-        alert(ValValor.Texto);
+        return '';
     };
     this.type = function(){
         return 'sub_declaracion_variable';
@@ -699,8 +974,85 @@ function DeclaracionMetodo_CAAS(x,y,z,d,p,i,linea) {
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
     };
-    this.Ejecutar = function(EntornoPadre){
-        
+    this.Ejecutar = function(EntornoPadre,PosicionRelativaStack,Ambito,PrimeraPasada){
+//OBTENER VALOR DE LOS MODIFICADORES
+        let Visibilidad = '';
+        let static = false;
+        let abstract = false;
+        let final = false;
+        let Size = this.Instrucciones.getSize();
+        Size = Size + this.Parametros.length;
+        for(let i = 0; i <this.Modificadores.length;i++){
+            switch(this.Modificadores[i]){
+                case 'public':
+                    if(Visibilidad!=''){this.AgregarError('La clase ya posee una visibilidad');} 
+                    Visibilidad = 'public'; 
+                    break;
+                case 'protected':
+                    if(Visibilidad!=''){this.AgregarError('La clase ya posee una visibilidad');} 
+                    Visibilidad = 'protected'; 
+                    break;
+                case 'private':
+                    if(Visibilidad!=''){this.AgregarError('La clase ya posee una visibilidad');} 
+                    Visibilidad = 'private'; 
+                    break;
+                case 'static':if(static){this.AgregarError('Modificador static ya utilizado en declaracion');}static = true;break;
+                case 'final':if(final){this.AgregarError('Modificador final ya utilizado en declaracion');}final = true;break;
+                case 'abstract':if(abstract){this.AgregarError('Modificador abstract ya utilizado en declaracion');}abstract = true;break;
+                default:
+                    this.AgregarError('Modificador no permitido para declaracion de una clase');
+            }
+        }
+        if(Visibilidad==''){
+            Visibilidad = 'public';
+        }
+        PosicionRelativaStack = 0;//Reiniciando el contador 
+//AGREGAR EL METODO A LA TABLA DE SIMBOLOS
+        if(PrimeraPasada){
+            if(this.Dimensiones>0){
+                //Inicializar en heap el tamaño del arreglo
+            }else{
+                EntornoPadre.AgregarSimbolo(this.Identificador,'metodo',this.Tipo,Size,null,Array.from(Ambito),Visibilidad,static,final,abstract,false,this.Dimensiones,this.Parametros);
+            }
+            return;
+        }
+// DECLARACION DE LOS PARAMETROS
+        Ambito.push(this.Identificador);//Aqui aumento el ambito con este metodo debido aque ejecutare lo que esta dentro
+        EntornoPadre.setAmbito(Array.from(Ambito));        
+        for(let i = 0;i <this.Parametros.length;i++){
+            let finalParametro = false;
+            for(let j = 0; j <this.Parametros[j].Modificadores.length;j++){
+                switch(this.Modificadores[j]){
+                    case 'final':if(finalParametro){this.AgregarError('Modificador final ya utilizado en declaracion');}finalParametro = true;break;
+                    default:
+                        this.AgregarError('Modificador '+this.Parametros[i].Modificadores[j]+ ' no permitido para declaracion de un parametro');
+                }
+            }
+            if(this.Parametros[i].CantidadDimensiones>0){
+                EntornoPadre.AgregarSimbolo(this.Parametros[i].Identificador,'arreglo',this.Parametros[i].Tipo,1,PosicionRelativaStack,Array.from(Ambito),'public',false,finalParametro,false,false,0,null);
+                PosicionRelativaStack++;
+            }else{
+                EntornoPadre.AgregarSimbolo(this.Parametros[i].Identificador,'variable',this.Parametros[i].Tipo,1,PosicionRelativaStack,Array.from(Ambito),'public',false,finalParametro,false,false,0,null);
+                PosicionRelativaStack++;
+            }
+        }
+//OBTENCION DEL CODIGO 3D DE LAS INSTRUCCIONES DENTRO DEL METODO
+        let Texto = '';
+        Texto = this.Instrucciones.Ejecutar(EntornoPadre,PosicionRelativaStack, Ambito);
+        Texto = Texto.replace(/\n/g,"\n\t");
+        Ambito.pop();//Aqui disminuyo el ambito con este metodo debido aque ejecutare lo que esta dentro
+//DECLARAR EL METODO EN CODIGO 3D
+        let NombreClase = '';
+        for(let i = 0;i<Ambito.length;i++){
+            if(i==0){
+                NombreClase += Ambito[i];
+            }else{
+                NombreClase += '_'+Ambito[i];
+            }
+        }
+        Texto = '\nproc '+NombreClase+'_'+this.Identificador+' begin '+Texto+ '\nend';
+        Texto = '\n//Declaracion del metodo '+this.Identificador+Texto;
+        return Texto;
     };
     this.type = function(){
         return 'declaracion_metodo';
@@ -781,19 +1133,37 @@ function CasteoExplicitoBasico_CAAS(x,y,linea) {
         ValRetorno.Temporal = NuevoTemporal;
         ValRetorno.Tipo = 'valor';
         ValRetorno.Texto = ValValor.Texto;        
-        if(this.Tipo.TipoDato=='decimal'){
+        if(this.Tipo.TipoDato=='decimal'&&ValValor.Tipo=='valor'){
             ValRetorno.TipoDato = 'decimal';
             if(ValValor.TipoDato == 'decimal'){
-                ValRetorno.Texto = '\n'+ValRetorno.Temporal+' = '+ValValor.Temporal+';'
+                ValRetorno.Texto += '\n'+ValRetorno.Temporal+' = '+ValValor.Temporal+';'
             }else if(ValValor.TipoDato =='entero'){
-                ValRetorno.Texto = '\n'+ValRetorno.Temporal+' = '+ValValor.Temporal+';'
+                ValRetorno.Texto += '\n'+ValRetorno.Temporal+' = '+ValValor.Temporal+';'
             }else if(ValValor.TipoDato == 'caracter'){
                 ValRetorno.Texto += '\n'+ValRetorno.Temporal+' = '+ValValor.Temporal+';';
             }else if(ValValor.TipoDato == 'cadena'){
+                let TemporalPosicion = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+                let TemporalValor = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+                let EtiquetaRetorno = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+                let EtiquetaSalida = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();            
+                ValRetorno.Texto += '\n'+TemporalPosicion+' = '+ValValor.Temporal+';';
+                ValRetorno.Texto += '\n'+TemporalValor+' = 0;';
+                ValRetorno.Texto += '\n'+EtiquetaRetorno+':';
+                ValRetorno.Texto += '\n'+ValRetorno.Temporal+' = Heap['+TemporalPosicion+'];'
+                ValRetorno.Texto += '\n'+TemporalPosicion+' = '+TemporalPosicion +'+ 1;'
+                ValRetorno.Texto += '\nif('+ValRetorno.Temporal+' > 57) goto '+EtiquetaSalida+';';
+                ValRetorno.Texto += '\nif('+ValRetorno.Temporal+' < 48) goto '+EtiquetaSalida+';';
+                ValRetorno.Texto += '\n'+ValRetorno.Temporal+' = '+ValRetorno.Temporal+' - 48;'//Para obtener el valor numerico
+                ValRetorno.Texto += '\n'+TemporalValor+' = '+TemporalValor+' + '+ValRetorno.Temporal+';';
+                ValRetorno.Texto += '\n'+TemporalValor+' = '+TemporalValor+' * 10;';
+                ValRetorno.Texto += '\ngoto '+EtiquetaRetorno+';'
+                ValRetorno.Texto += '\n'+EtiquetaSalida+':';
+                ValRetorno.Texto += '\n'+TemporalValor+' = '+TemporalValor+' / 10;';
+                ValRetorno.Temporal = TemporalValor;
             }else{
                 this.AgregarError('No se puede hacer conversion a tipo decimal desde uno de tipo '+ValValor.TipoDato);
             }
-        }else if(this.Tipo.TipoDato=='entero'){                
+        }else if(this.Tipo.TipoDato=='entero'&&ValValor.Tipo=='valor'){                
             ValRetorno.TipoDato = 'entero';
             if(ValValor.TipoDato == 'decimal'){
                 let TemporalAuxiliar = 't'+EntornoPadre.Temporales.getNuevoTemporal();                        
@@ -801,15 +1171,33 @@ function CasteoExplicitoBasico_CAAS(x,y,linea) {
                 ValRetorno.Texto += '\n'+TemporalAuxiliar+' = '+ValRetorno.Temporal+' % 1;';
                 ValRetorno.Texto += '\n'+ValRetorno.Temporal+' = '+ValRetorno.Temporal+' - '+TemporalAuxiliar+';';
             }else if(ValValor.TipoDato =='entero'){
-                ValRetorno.Texto = '\n'+ValRetorno.Temporal+' = '+ValValor.Temporal+';'
+                ValRetorno.Texto += '\n'+ValRetorno.Temporal+' = '+ValValor.Temporal+';'
             }else if(ValValor.TipoDato == 'caracter'){
                 ValRetorno.Texto += '\n'+ValRetorno.Temporal+' = '+ValValor.Temporal+';';
             }else if(ValValor.TipoDato == 'cadena'){
+                let TemporalPosicion = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+                let TemporalValor = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+                let EtiquetaRetorno = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+                let EtiquetaSalida = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();            
+                ValRetorno.Texto += '\n'+TemporalPosicion+' = '+ValValor.Temporal+';';
+                ValRetorno.Texto += '\n'+TemporalValor+' = 0;';
+                ValRetorno.Texto += '\n'+EtiquetaRetorno+':';
+                ValRetorno.Texto += '\n'+ValRetorno.Temporal+' = Heap['+TemporalPosicion+'];'
+                ValRetorno.Texto += '\n'+TemporalPosicion+' = '+TemporalPosicion +'+ 1;'
+                ValRetorno.Texto += '\nif('+ValRetorno.Temporal+' > 57) goto '+EtiquetaSalida+';';
+                ValRetorno.Texto += '\nif('+ValRetorno.Temporal+' < 48) goto '+EtiquetaSalida+';';
+                ValRetorno.Texto += '\n'+ValRetorno.Temporal+' = '+ValRetorno.Temporal+' - 48;'//Para obtener el valor numerico
+                ValRetorno.Texto += '\n'+TemporalValor+' = '+TemporalValor+' + '+ValRetorno.Temporal+';';
+                ValRetorno.Texto += '\n'+TemporalValor+' = '+TemporalValor+' * 10;';
+                ValRetorno.Texto += '\ngoto '+EtiquetaRetorno+';'
+                ValRetorno.Texto += '\n'+EtiquetaSalida+':';
+                ValRetorno.Texto += '\n'+TemporalValor+' = '+TemporalValor+' / 10;';
+                ValRetorno.Temporal = TemporalValor;
             }else{
                 this.AgregarError('No se puede hacer conversion a tipo decimal desde uno de tipo '+ValValor.TipoDato);
                 return;
             }
-        }else if(this.Tipo.TipoDato=='caracter'){                
+        }else if(this.Tipo.TipoDato=='caracter'&&ValValor.Tipo=='valor'){                
             ValRetorno.TipoDato = 'caracter';
             if(ValValor.TipoDato == 'decimal'){
                 let TemporalAuxiliar = 't'+EntornoPadre.Temporales.getNuevoTemporal();                        
@@ -851,19 +1239,120 @@ function CasteoExplicitoBasico_CAAS(x,y,linea) {
             }else if(ValValor.TipoDato == 'caracter'){
                 ValRetorno.Texto += '\n'+ValRetorno.Temporal+' = '+ValValor.Temporal+';';
             }else if(ValValor.TipoDato == 'cadena'){
+                let TemporalPosicion = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+                let EtiquetaRetorno = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+                ValRetorno.Texto += '\n'+TemporalPosicion+' = '+ValValor.Temporal+';';
+                ValRetorno.Texto += '\n'+EtiquetaRetorno+':';
+                ValRetorno.Texto += '\n'+ValRetorno.Temporal+' = Heap['+TemporalPosicion+'];'
+                ValRetorno.Texto += '\n'+TemporalPosicion+' = '+TemporalPosicion +'+ 1;'
+                ValRetorno.Texto += '\nif('+ValRetorno.Temporal+' < 0) goto '+EtiquetaRetorno+';';
             }else{
                 this.AgregarError('No se puede hacer conversion a tipo decimal desde uno de tipo '+ValValor.TipoDato);
                 return;
             }
-        }else if(this.Tipo.TipoDato=='cadena'){
-            if(this.Tipo.TipoDato=='entero'){                
-            }else if(this.Tipo.TipoDato=='decimal'){
-            }else if(this.Tipo.TipoDato=='caracter'){                    
-            }else if(this.Tipo.TipoDato=='cadena'){                    
-            }else{    
+        }else if(this.Tipo.TipoDato=='cadena'&&ValValor.Tipo=='valor'){
+            ValRetorno.TipoDato = 'cadena';
+            ValRetorno.Temporal = ValValor.Temporal;
+            if(ValValor.TipoDato == 'decimal'){                
+                let TemporalContador = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+                let TemporalApuntador = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+                ValRetorno.Texto += '\n'+TemporalContador +' = H;';
+                ValRetorno.Texto += '\n'+TemporalApuntador +' = H;';
+                ValRetorno.Texto += '\nHeap['+TemporalContador+'] = 0-2;';
+                ValRetorno.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+                ValRetorno.Texto += '\nHeap['+TemporalContador+'] = '+ValRetorno.Temporal+';';
+                ValRetorno.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+                ValRetorno.Texto += '\nHeap['+TemporalContador+'] = '+ '\0'.charCodeAt(0)+';';
+                ValRetorno.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+                ValRetorno.Texto += '\nH = '+TemporalContador+';'
+                ValRetorno.Temporal = TemporalApuntador;
+            }else if(ValValor.TipoDato =='entero'){                
+                let TemporalContador = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+                let TemporalApuntador = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+                ValRetorno.Texto += '\n'+TemporalContador +' = H;';
+                ValRetorno.Texto += '\n'+TemporalApuntador +' = H;';
+                ValRetorno.Texto += '\nHeap['+TemporalContador+'] = 0-1;';
+                ValRetorno.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+                ValRetorno.Texto += '\nHeap['+TemporalContador+'] = '+ValRetorno.Temporal+';';
+                ValRetorno.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+                ValRetorno.Texto += '\nHeap['+TemporalContador+'] = '+ '\0'.charCodeAt(0)+';';
+                ValRetorno.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+                ValRetorno.Texto += '\nH = '+TemporalContador+';'
+                ValRetorno.Temporal = TemporalApuntador;
+            }else if(ValValor.TipoDato == 'caracter'){                
+                let TemporalContador = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+                let TemporalApuntador = 't'+EntornoPadre.Temporales.getNuevoTemporal();            
+                ValRetorno.Texto += '\n'+TemporalContador +' = H;'
+                ValRetorno.Texto += '\n'+TemporalApuntador +' = H;';
+                ValRetorno.Texto += '\nHeap['+TemporalContador+'] = '+ValRetorno.Temporal+';';
+                ValRetorno.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+                ValRetorno.Texto += '\nHeap['+TemporalContador+'] = '+ '\0'.charCodeAt(0)+';';
+                ValRetorno.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+                ValRetorno.Texto += '\nH = '+TemporalContador+';'
+                ValRetorno.Temporal = TemporalApuntador;
+            }else if(ValValor.TipoDato == 'cadena'){
+                let NuevoTemporal = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+                ValRetorno.Texto += '\n'+NuevoTemporal+' = '+ValValor.Temporal+';';
+                ValRetorno.Temporal = NuevoTemporal;
+            }else if(ValValor.TipoDato == 'booleano'){
+                //######## Obteniendo si es verdadero o falso ###################
+                for(let i = 0;i<ValValor.ListaVerdaderos.length;i++){
+                    ValValor.Texto += '\n'+ValValor.ListaVerdaderos[i]+':';
+                }
+                let NuevoTemporalDer = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+                ValValor.Temporal = NuevoTemporalDer;
+                ValValor.Texto+= '\n'+NuevoTemporalDer+' = 1;';
+                let NuevaEtiquetaSalidaDer = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+                ValValor.Texto+= '\ngoto '+NuevaEtiquetaSalidaDer+';';
+                for(let i = 0;i<ValValor.ListaFalsos.length;i++){
+                    ValValor.Texto += '\n'+ValValor.ListaFalsos[i]+':';
+                }            
+                ValValor.Texto+= '\n'+NuevoTemporalDer+' = 0;';      
+                ValValor.Texto+= '\n'+NuevaEtiquetaSalidaDer+':';
+                //#########################################################
+                let TemporalContador = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+                let TemporalApuntador = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+                ValValor.Texto += '\n'+TemporalContador +' = H;';
+                ValValor.Texto += '\n'+TemporalApuntador +' = H;';
+                let EtiquetaVerdadero = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+                let EtiquetaSalida = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+                ValValor.Texto += '\nif('+ValValor.Temporal+' == 1) goto '+EtiquetaVerdadero;
+                ValValor.Texto += '\nHeap['+TemporalContador    +'] = 102;';//102 es el ascii de 'f'
+                ValValor.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+                ValValor.Texto += '\nHeap['+TemporalContador+'] =  97;';//97  es el ascii de 'a'
+                ValValor.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+                ValValor.Texto += '\nHeap['+TemporalContador+'] = 108;';//114 es el ascii de 'l'
+                ValValor.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+                ValValor.Texto += '\nHeap['+TemporalContador+'] = 115;';//114 es el ascii de 's'
+                ValValor.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+                ValValor.Texto += '\nHeap['+TemporalContador+'] = 101;';//101 es el ascii de 'e'
+                ValValor.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+                ValValor.Texto += '\nHeap['+TemporalContador+'] = '+ '\0'.charCodeAt(0)+';';
+                ValValor.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+                ValValor.Texto += '\ngoto '+EtiquetaSalida+';'
+                ValValor.Texto += '\n'+EtiquetaVerdadero+':'
+                ValValor.Texto += '\nHeap['+TemporalContador+'] = 116;';//116 es el ascii de 't'
+                ValValor.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+                ValValor.Texto += '\nHeap['+TemporalContador+'] = 114;';//114 es el ascii de 'r'
+                ValValor.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+                ValValor.Texto += '\nHeap['+TemporalContador+'] = 117;';//117 es el ascii de 'u'
+                ValValor.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+                ValValor.Texto += '\nHeap['+TemporalContador+'] = 101;';//101 es el ascii de 'e'
+                ValValor.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+                ValValor.Texto += '\nHeap['+TemporalContador+'] = '+ '\0'.charCodeAt(0)+';';
+                ValValor.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+                ValValor.Texto += '\n'+EtiquetaSalida+':'
+                ValValor.Texto += '\nH = '+TemporalContador+';'
+                ValValor.Temporal = TemporalApuntador;
+                ValRetorno.Texto = ValValor.Texto;
+                ValRetorno.Temporal = ValValor.Temporal;
+            }else{
+                this.AgregarError('No se puede hacer conversion a tipo cadena desde uno de tipo '+ValValor.TipoDato);
+                return;
             }
         }else{
             this.Agregar('No se pudo realizar la conversion de '+ValValor.TipoDato +' a '+this.Tipo.TipoDato);
+            return;
         }
         return ValRetorno;        
     };
@@ -885,7 +1374,117 @@ function ToStr_CAAS(x,linea) {
         ErroresPadre.AgregarErrores(this.Errores);
     };
     this.Ejecutar = function(EntornoPadre){
-        
+        let ValValor = this.Valor.Ejecutar(EntornoPadre);
+        let ValRetorno = new Object();
+        ValRetorno.TipoDato = 'cadena';
+        ValRetorno.Temporal = ValValor.Temporal;
+        ValRetorno.Tipo = 'valor';
+        ValRetorno.Texto = ValValor.Texto;
+        if(ValValor.TipoDato == 'decimal'&&ValValor.Tipo=='valor'){
+            TipoResultante = 'cadena';
+            ValRetorno.TipoDato =='cadena';
+            let TemporalContador = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+            let TemporalApuntador = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+            ValRetorno.Texto += '\n'+TemporalContador +' = H;';
+            ValRetorno.Texto += '\n'+TemporalApuntador +' = H;';
+            ValRetorno.Texto += '\nHeap['+TemporalContador+'] = 0-2;';
+            ValRetorno.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValRetorno.Texto += '\nHeap['+TemporalContador+'] = '+ValRetorno.Temporal+';';
+            ValRetorno.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValRetorno.Texto += '\nHeap['+TemporalContador+'] = '+ '\0'.charCodeAt(0)+';';
+            ValRetorno.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValRetorno.Texto += '\nH = '+TemporalContador+';'
+            ValRetorno.Temporal = TemporalApuntador;
+        }else if(ValValor.TipoDato =='entero'&&ValValor.Tipo=='valor'){
+            TipoResultante = 'cadena';
+            ValRetorno.TipoDato =='cadena';
+            let TemporalContador = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+            let TemporalApuntador = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+            ValRetorno.Texto += '\n'+TemporalContador +' = H;';
+            ValRetorno.Texto += '\n'+TemporalApuntador +' = H;';
+            ValRetorno.Texto += '\nHeap['+TemporalContador+'] = 0-1;';
+            ValRetorno.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValRetorno.Texto += '\nHeap['+TemporalContador+'] = '+ValRetorno.Temporal+';';
+            ValRetorno.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValRetorno.Texto += '\nHeap['+TemporalContador+'] = '+ '\0'.charCodeAt(0)+';';
+            ValRetorno.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValRetorno.Texto += '\nH = '+TemporalContador+';'
+            ValRetorno.Temporal = TemporalApuntador;
+        }else if(ValValor.TipoDato == 'caracter'&&ValValor.Tipo=='valor'){
+            TipoResultante = 'cadena';
+            ValRetorno.TipoDato =='cadena';
+            let TemporalContador = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+            let TemporalApuntador = 't'+EntornoPadre.Temporales.getNuevoTemporal();            
+            ValRetorno.Texto += '\n'+TemporalContador +' = H;'
+            ValRetorno.Texto += '\n'+TemporalApuntador +' = H;';
+            ValRetorno.Texto += '\nHeap['+TemporalContador+'] = '+ValRetorno.Temporal+';';
+            ValRetorno.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValRetorno.Texto += '\nHeap['+TemporalContador+'] = '+ '\0'.charCodeAt(0)+';';
+            ValRetorno.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValRetorno.Texto += '\nH = '+TemporalContador+';'
+            ValRetorno.Temporal = TemporalApuntador;
+        }else if(ValValor.TipoDato == 'cadena'&&ValValor.Tipo=='valor'){
+            let NuevoTemporal = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+            ValRetorno.Texto += '\n'+NuevoTemporal+' = '+ValValor.Temporal+';';
+            ValRetorno.Temporal = NuevoTemporal;
+        }else if(ValValor.TipoDato == 'booleano'&&ValValor.Tipo == 'valor'){
+            //######## Obteniendo si es verdadero o falso ###################
+            for(let i = 0;i<ValValor.ListaVerdaderos.length;i++){
+                ValValor.Texto += '\n'+ValValor.ListaVerdaderos[i]+':';
+            }
+            let NuevoTemporalDer = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+            ValValor.Temporal = NuevoTemporalDer;
+            ValValor.Texto+= '\n'+NuevoTemporalDer+' = 1;';
+            let NuevaEtiquetaSalidaDer = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+            ValValor.Texto+= '\ngoto '+NuevaEtiquetaSalidaDer+';';
+            for(let i = 0;i<ValValor.ListaFalsos.length;i++){
+                ValValor.Texto += '\n'+ValValor.ListaFalsos[i]+':';
+            }            
+            ValValor.Texto+= '\n'+NuevoTemporalDer+' = 0;';      
+            ValValor.Texto+= '\n'+NuevaEtiquetaSalidaDer+':';
+            //#########################################################
+            let TemporalContador = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+            let TemporalApuntador = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+            ValValor.Texto += '\n'+TemporalContador +' = H;';
+            ValValor.Texto += '\n'+TemporalApuntador +' = H;';
+            TipoResultante = 'cadena';
+            let EtiquetaVerdadero = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+            let EtiquetaSalida = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+            ValValor.Texto += '\nif('+ValValor.Temporal+' == 1) goto '+EtiquetaVerdadero;
+            ValValor.Texto += '\nHeap['+TemporalContador    +'] = 102;';//102 es el ascii de 'f'
+            ValValor.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValValor.Texto += '\nHeap['+TemporalContador+'] =  97;';//97  es el ascii de 'a'
+            ValValor.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValValor.Texto += '\nHeap['+TemporalContador+'] = 108;';//114 es el ascii de 'l'
+            ValValor.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValValor.Texto += '\nHeap['+TemporalContador+'] = 115;';//114 es el ascii de 's'
+            ValValor.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValValor.Texto += '\nHeap['+TemporalContador+'] = 101;';//101 es el ascii de 'e'
+            ValValor.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValValor.Texto += '\nHeap['+TemporalContador+'] = '+ '\0'.charCodeAt(0)+';';
+            ValValor.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValValor.Texto += '\ngoto '+EtiquetaSalida+';'
+            ValValor.Texto += '\n'+EtiquetaVerdadero+':'
+            ValValor.Texto += '\nHeap['+TemporalContador+'] = 116;';//116 es el ascii de 't'
+            ValValor.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValValor.Texto += '\nHeap['+TemporalContador+'] = 114;';//114 es el ascii de 'r'
+            ValValor.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValValor.Texto += '\nHeap['+TemporalContador+'] = 117;';//117 es el ascii de 'u'
+            ValValor.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValValor.Texto += '\nHeap['+TemporalContador+'] = 101;';//101 es el ascii de 'e'
+            ValValor.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValValor.Texto += '\nHeap['+TemporalContador+'] = '+ '\0'.charCodeAt(0)+';';
+            ValValor.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValValor.Texto += '\n'+EtiquetaSalida+':'
+            ValValor.Texto += '\nH = '+TemporalContador+';'
+            ValValor.Temporal = TemporalApuntador;
+            ValRetorno.Texto = ValValor.Texto;
+            ValRetorno.Temporal = ValValor.Temporal;
+        }else{
+            this.AgregarError('No se puede hacer conversion a tipo cadena desde uno de tipo '+ValValor.TipoDato);
+            return;
+        }
+        return ValRetorno;
     };
     this.type = function(){
         return 'to_str';
@@ -912,16 +1511,34 @@ function ToDouble_CAAS(x,linea) {
         ValRetorno.Temporal = NuevoTemporal;
         ValRetorno.Tipo = 'valor';
         ValRetorno.Texto = ValValor.Texto;
-        if(ValValor.TipoDato == 'decimal'){
+        if(ValValor.TipoDato == 'decimal'&&ValValor.Tipo=='valor'){
             ValRetorno.Texto = '\n'+ValRetorno.Temporal+' = '+ValValor.Temporal+';'
-        }else if(ValValor.TipoDato =='entero'){
+        }else if(ValValor.TipoDato =='entero'&&ValValor.Tipo=='valor'){
             ValRetorno.Texto = '\n'+ValRetorno.Temporal+' = '+ValValor.Temporal+';'
-        }else if(ValValor.TipoDato == 'caracter'){
+        }else if(ValValor.TipoDato == 'caracter'&&ValValor.Tipo=='valor'){
             ValRetorno.Texto += '\n'+ValRetorno.Temporal+' = '+ValValor.Temporal+';';
-        }else if(ValValor.TipoDato == 'cadena'){
-
+        }else if(ValValor.TipoDato == 'cadena'&&ValValor.Tipo=='valor'){
+            let TemporalPosicion = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+            let TemporalValor = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+            let EtiquetaRetorno = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+            let EtiquetaSalida = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();            
+            ValRetorno.Texto += '\n'+TemporalPosicion+' = '+ValValor.Temporal+';';
+            ValRetorno.Texto += '\n'+TemporalValor+' = 0;';
+            ValRetorno.Texto += '\n'+EtiquetaRetorno+':';
+            ValRetorno.Texto += '\n'+ValRetorno.Temporal+' = Heap['+TemporalPosicion+'];'
+            ValRetorno.Texto += '\n'+TemporalPosicion+' = '+TemporalPosicion +'+ 1;'
+            ValRetorno.Texto += '\nif('+ValRetorno.Temporal+' > 57) goto '+EtiquetaSalida+';';
+            ValRetorno.Texto += '\nif('+ValRetorno.Temporal+' < 48) goto '+EtiquetaSalida+';';
+            ValRetorno.Texto += '\n'+ValRetorno.Temporal+' = '+ValRetorno.Temporal+' - 48;'//Para obtener el valor numerico
+            ValRetorno.Texto += '\n'+TemporalValor+' = '+TemporalValor+' + '+ValRetorno.Temporal+';';
+            ValRetorno.Texto += '\n'+TemporalValor+' = '+TemporalValor+' * 10;';
+            ValRetorno.Texto += '\ngoto '+EtiquetaRetorno+';'
+            ValRetorno.Texto += '\n'+EtiquetaSalida+':';
+            ValRetorno.Texto += '\n'+TemporalValor+' = '+TemporalValor+' / 10;';
+            ValRetorno.Temporal = TemporalValor;
         }else{
             this.AgregarError('No se puede hacer conversion a tipo decimal desde uno de tipo '+ValValor.TipoDato);
+            return;
         }
         return ValRetorno;
     };
@@ -950,17 +1567,34 @@ function ToInt_CAAS(x,linea) {
         ValRetorno.Temporal = NuevoTemporal;
         ValRetorno.Tipo = 'valor';
         ValRetorno.Texto = ValValor.Texto;
-        if(ValValor.TipoDato == 'decimal'){
+        if(ValValor.TipoDato == 'decimal'&&ValValor.Tipo=='valor'){
             let TemporalAuxiliar = 't'+EntornoPadre.Temporales.getNuevoTemporal();                        
             ValRetorno.Texto += '\n'+ValRetorno.Temporal+' = '+ValValor.Temporal+';';
             ValRetorno.Texto += '\n'+TemporalAuxiliar+' = '+ValRetorno.Temporal+' % 1;';
             ValRetorno.Texto += '\n'+ValRetorno.Temporal+' = '+ValRetorno.Temporal+' - '+TemporalAuxiliar+';';
-        }else if(ValValor.TipoDato =='entero'){
+        }else if(ValValor.TipoDato =='entero'&&ValValor.Tipo=='valor'){
             ValRetorno.Texto = '\n'+ValRetorno.Temporal+' = '+ValValor.Temporal+';'
-        }else if(ValValor.TipoDato == 'caracter'){
+        }else if(ValValor.TipoDato == 'caracter'&&ValValor.Tipo=='valor'){
             ValRetorno.Texto += '\n'+ValRetorno.Temporal+' = '+ValValor.Temporal+';';
-        }else if(ValValor.TipoDato == 'cadena'){
-            
+        }else if(ValValor.TipoDato == 'cadena'&&ValValor.Tipo=='valor'){            
+            let TemporalPosicion = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+            let TemporalValor = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+            let EtiquetaRetorno = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+            let EtiquetaSalida = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();            
+            ValRetorno.Texto += '\n'+TemporalPosicion+' = '+ValValor.Temporal+';';
+            ValRetorno.Texto += '\n'+TemporalValor+' = 0;';
+            ValRetorno.Texto += '\n'+EtiquetaRetorno+':';
+            ValRetorno.Texto += '\n'+ValRetorno.Temporal+' = Heap['+TemporalPosicion+'];'
+            ValRetorno.Texto += '\n'+TemporalPosicion+' = '+TemporalPosicion +'+ 1;'
+            ValRetorno.Texto += '\nif('+ValRetorno.Temporal+' > 57) goto '+EtiquetaSalida+';';
+            ValRetorno.Texto += '\nif('+ValRetorno.Temporal+' < 48) goto '+EtiquetaSalida+';';
+            ValRetorno.Texto += '\n'+ValRetorno.Temporal+' = '+ValRetorno.Temporal+' - 48;'//Para obtener el valor numerico
+            ValRetorno.Texto += '\n'+TemporalValor+' = '+TemporalValor+' + '+ValRetorno.Temporal+';';
+            ValRetorno.Texto += '\n'+TemporalValor+' = '+TemporalValor+' * 10;';
+            ValRetorno.Texto += '\ngoto '+EtiquetaRetorno+';'
+            ValRetorno.Texto += '\n'+EtiquetaSalida+':';
+            ValRetorno.Texto += '\n'+TemporalValor+' = '+TemporalValor+' / 10;';
+            ValRetorno.Temporal = TemporalValor;
         }else{
             this.AgregarError('No se puede hacer conversion a tipo decimal desde uno de tipo '+ValValor.TipoDato);
             return;
@@ -992,7 +1626,7 @@ function ToChar_CAAS(x,linea) {
         ValRetorno.Temporal = NuevoTemporal;
         ValRetorno.Tipo = 'valor';
         ValRetorno.Texto = ValValor.Texto;
-        if(ValValor.TipoDato == 'decimal'){
+        if(ValValor.TipoDato == 'decimal'&&ValValor.Tipo=='valor'){
             let TemporalAuxiliar = 't'+EntornoPadre.Temporales.getNuevoTemporal();                        
             ValRetorno.Texto += '\n'+ValRetorno.Temporal+' = '+ValValor.Temporal+';';
             ValRetorno.Texto += '\n'+TemporalAuxiliar+' = '+ValRetorno.Temporal+' % 1;';
@@ -1012,7 +1646,7 @@ function ToChar_CAAS(x,linea) {
             ValRetorno.Texto += '\n'+ValRetorno.Temporal +' = 255;';
             ValRetorno.Texto += '\ngoto '+EtiquetaRetorno+';';
             ValRetorno.Texto += '\n'+EtiquetaSalida+':';
-        }else if(ValValor.TipoDato =='entero'){
+        }else if(ValValor.TipoDato =='entero'&&ValValor.Tipo=='valor'){
             ValRetorno.Texto = '\n'+ValRetorno.Temporal+' = '+ValValor.Temporal+';'
             let EtiquetaSalida = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
             let EtiquetaErrorMenor = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
@@ -1029,10 +1663,16 @@ function ToChar_CAAS(x,linea) {
             ValRetorno.Texto += '\n'+ValRetorno.Temporal +' = 255;';
             ValRetorno.Texto += '\ngoto '+EtiquetaRetorno+';';
             ValRetorno.Texto += '\n'+EtiquetaSalida+':';
-        }else if(ValValor.TipoDato == 'caracter'){
+        }else if(ValValor.TipoDato == 'caracter'&&ValValor.Tipo=='valor'){
             ValRetorno.Texto += '\n'+ValRetorno.Temporal+' = '+ValValor.Temporal+';';
-        }else if(ValValor.TipoDato == 'cadena'){
-            
+        }else if(ValValor.TipoDato == 'cadena'&&ValValor.Tipo=='valor'){
+            let TemporalPosicion = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+            let EtiquetaRetorno = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+            ValRetorno.Texto += '\n'+TemporalPosicion+' = '+ValValor.Temporal;
+            ValRetorno.Texto += '\n'+EtiquetaRetorno+':';
+            ValRetorno.Texto += '\n'+ValRetorno.Temporal+' = Heap['+TemporalPosicion+'];'
+            ValRetorno.Texto += '\n'+TemporalPosicion+' = '+TemporalPosicion +'+ 1;'
+            ValRetorno.Texto += '\nif('+ValRetorno.Temporal+' < 0) goto '+EtiquetaRetorno+';';
         }else{
             this.AgregarError('No se puede hacer conversion a tipo decimal desde uno de tipo '+ValValor.TipoDato);
             return;
@@ -1349,10 +1989,10 @@ function Suma_CAAS(x,y,z,linea) {
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
     };
-    this.Ejecutar = function(EntornoPadre){
+    this.Ejecutar = function(EntornoPadre){        
         let ValIzq = this.Izq.Ejecutar(EntornoPadre);
         let ValDer = this.Der.Ejecutar(EntornoPadre);
-        let TipoResultante = null;
+        let TipoResultante = null;        
         //OBTENCION DEL TIPO RESULTANTE
         if(ValIzq ==null||ValDer ==null||ValIzq == undefined||ValDer == undefined){
             this.AgregarError('No se pudo obtener el valor de uno de los operandos');
@@ -1371,35 +2011,100 @@ function Suma_CAAS(x,y,z,linea) {
         else if(ValIzq.TipoDato == 'caracter'&& ValDer.TipoDato=='entero'){TipoResultante = 'entero';/*ValIzq.Valor= String.fromCharCode(ValIzq.Valor);*/}
         else if(ValIzq.TipoDato == 'caracter'&& ValDer.TipoDato=='caracter'){TipoResultante = 'entero';/*ValIzq.Valor= String.fromCharCode(ValIzq.Valor);ValDer.Valor= String.fromCharCode(ValDer.Valor);*/}
         else if(ValIzq.TipoDato == 'entero'&& ValDer.TipoDato=='entero'){TipoResultante = 'entero';}
-        else if(ValIzq.TipoDato == 'cadena'&& ValDer.TipoDato=='entero'){TipoResultante = 'cadena';}
-        else if(ValIzq.TipoDato == 'entero'&& ValDer.TipoDato=='cadena'){TipoResultante = 'cadena';}
-        else if(ValIzq.TipoDato == 'cadena'&& ValDer.TipoDato=='caracter'){TipoResultante = 'cadena';}
-        else if(ValIzq.TipoDato == 'caracter'&& ValDer.TipoDato=='cadena'){TipoResultante = 'cadena';}
-        else if(ValIzq.TipoDato == 'cadena'&& ValDer.TipoDato=='decimal'){TipoResultante = 'cadena';}
-        else if(ValIzq.TipoDato == 'decimal'&& ValDer.TipoDato=='cadena'){TipoResultante = 'cadena';}
-        else if(ValIzq.TipoDato == 'cadena'&& ValDer.TipoDato=='booleano'){TipoResultante = 'cadena';}
-        else if(ValIzq.TipoDato == 'booleano'&& ValDer.TipoDato=='cadena'){TipoResultante = 'cadena';}
-        else if(ValIzq.TipoDato == 'cadena'&& ValDer.TipoDato=='cadena'){TipoResultante = 'cadena';}
-        else{
-            this.AgregarError('No se pudo obtener el tipo de dato resultante entre los operandos');
-            return;
+        else if(ValIzq.TipoDato == 'cadena'&& ValDer.TipoDato=='entero'){
+            TipoResultante = 'cadena';
+            ValDer.TipoDato =='cadena';
+            let TemporalContador = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+            let TemporalApuntador = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+            ValDer.Texto += '\n'+TemporalContador +' = H;';
+            ValDer.Texto += '\n'+TemporalApuntador +' = H;';
+            ValDer.Texto += '\nHeap['+TemporalContador+'] = 0-1;';
+            ValDer.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValDer.Texto += '\nHeap['+TemporalContador+'] = '+ValDer.Temporal+';';
+            ValDer.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValDer.Texto += '\nHeap['+TemporalContador+'] = '+ '\0'.charCodeAt(0)+';';
+            ValDer.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValDer.Texto += '\nH = '+TemporalContador+';'
+            ValDer.Temporal = TemporalApuntador;
         }
-        if(ValIzq.TipoDato == 'booleano'){
-            for(let i = 0;i<ValIzq.ListaVerdaderos.length;i++){
-                ValIzq.Texto += '\n'+ValIzq.ListaVerdaderos[i]+':';
-            }
-            let NuevoTemporalIzq = 't'+EntornoPadre.Temporales.getNuevoTemporal();
-            ValIzq.Temporal = NuevoTemporalIzq;
-            ValIzq.Texto+= '\n'+NuevoTemporalIzq+' = 1;';
-            let NuevaEtiquetaSalidaIzq = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
-            ValIzq.Texto+= '\ngoto '+NuevaEtiquetaSalidaIzq+';';
-            for(let i = 0;i<ValIzq.ListaFalsos.length;i++){
-                ValIzq.Texto += '\n'+ValIzq.ListaFalsos[i]+':';
-            }            
-            ValIzq.Texto+= '\n'+NuevoTemporalIzq+' = 0;';      
-            ValIzq.Texto+= '\n'+NuevaEtiquetaSalidaIzq+':';
+        else if(ValIzq.TipoDato == 'entero'&& ValDer.TipoDato=='cadena'){
+            TipoResultante = 'cadena';
+            ValIzq.TipoDato =='cadena';
+            let TemporalContador = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+            let TemporalApuntador = 't'+EntornoPadre.Temporales.getNuevoTemporal();            
+            ValIzq.Texto += '\n'+TemporalContador +' = H;'
+            ValIzq.Texto += '\n'+TemporalApuntador +' = H;';
+            ValIzq.Texto += '\nHeap['+TemporalContador+'] = 0-1;';
+            ValIzq.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValIzq.Texto += '\nHeap['+TemporalContador+'] = '+ValIzq.Temporal+';';
+            ValIzq.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValIzq.Texto += '\nHeap['+TemporalContador+'] = '+ '\0'.charCodeAt(0)+';';
+            ValIzq.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValIzq.Texto += '\nH = '+TemporalContador+';'
+            ValIzq.Temporal = TemporalApuntador;
         }
-        if(ValDer.TipoDato == 'booleano'){
+        else if(ValIzq.TipoDato == 'cadena'&& ValDer.TipoDato=='caracter'){
+            TipoResultante = 'cadena';
+            ValDer.TipoDato =='cadena';
+            let TemporalContador = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+            let TemporalApuntador = 't'+EntornoPadre.Temporales.getNuevoTemporal();            
+            ValDer.Texto += '\n'+TemporalContador +' = H;'
+            ValDer.Texto += '\n'+TemporalApuntador +' = H;';
+            ValDer.Texto += '\nHeap['+TemporalContador+'] = '+ValDer.Temporal+';';
+            ValDer.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValDer.Texto += '\nHeap['+TemporalContador+'] = '+ '\0'.charCodeAt(0)+';';
+            ValDer.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValDer.Texto += '\nH = '+TemporalContador+';'
+            ValDer.Temporal = TemporalApuntador;
+        }
+        else if(ValIzq.TipoDato == 'caracter'&& ValDer.TipoDato=='cadena'){
+            TipoResultante = 'cadena';
+            ValIzq.TipoDato =='cadena';
+            let TemporalContador = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+            let TemporalApuntador = 't'+EntornoPadre.Temporales.getNuevoTemporal();            
+            ValIzq.Texto += '\n'+TemporalContador +' = H;'
+            ValIzq.Texto += '\n'+TemporalApuntador +' = H;';
+            ValIzq.Texto += '\nHeap['+TemporalContador+'] = '+ValIzq.Temporal+';';
+            ValIzq.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValIzq.Texto += '\nHeap['+TemporalContador+'] = '+ '\0'.charCodeAt(0)+';';
+            ValIzq.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValIzq.Texto += '\nH = '+TemporalContador+';'
+            ValIzq.Temporal = TemporalApuntador;
+        }
+        else if(ValIzq.TipoDato == 'cadena'&& ValDer.TipoDato=='decimal'){
+            TipoResultante = 'cadena';
+            ValDer.TipoDato =='cadena';
+            let TemporalContador = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+            let TemporalApuntador = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+            ValDer.Texto += '\n'+TemporalContador +' = H;';
+            ValDer.Texto += '\n'+TemporalApuntador +' = H;';
+            ValDer.Texto += '\nHeap['+TemporalContador+'] = 0-2;';
+            ValDer.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValDer.Texto += '\nHeap['+TemporalContador+'] = '+ValDer.Temporal+';';
+            ValDer.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValDer.Texto += '\nHeap['+TemporalContador+'] = '+ '\0'.charCodeAt(0)+';';
+            ValDer.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValDer.Texto += '\nH = '+TemporalContador+';'
+            ValDer.Temporal = TemporalApuntador;
+        }
+        else if(ValIzq.TipoDato == 'decimal'&& ValDer.TipoDato=='cadena'){
+            TipoResultante = 'cadena';
+            ValIzq.TipoDato =='cadena';
+            let TemporalContador = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+            let TemporalApuntador = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+            ValIzq.Texto += '\n'+TemporalContador +' = H;';
+            ValIzq.Texto += '\n'+TemporalApuntador +' = H;';
+            ValIzq.Texto += '\nHeap['+TemporalContador+'] = 0-2;';
+            ValIzq.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValIzq.Texto += '\nHeap['+TemporalContador+'] = '+ValIzq.Temporal+';';
+            ValIzq.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValIzq.Texto += '\nHeap['+TemporalContador+'] = '+ '\0'.charCodeAt(0)+';';
+            ValIzq.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValIzq.Texto += '\nH = '+TemporalContador+';'
+            ValIzq.Temporal = TemporalApuntador;
+        }
+        else if(ValIzq.TipoDato == 'cadena'&& ValDer.TipoDato=='booleano'){
+            //######## Obteniendo si es verdadero o falso ###################
             for(let i = 0;i<ValDer.ListaVerdaderos.length;i++){
                 ValDer.Texto += '\n'+ValDer.ListaVerdaderos[i]+':';
             }
@@ -1413,14 +2118,139 @@ function Suma_CAAS(x,y,z,linea) {
             }            
             ValDer.Texto+= '\n'+NuevoTemporalDer+' = 0;';      
             ValDer.Texto+= '\n'+NuevaEtiquetaSalidaDer+':';
+            //#########################################################
+            let TemporalContador = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+            let TemporalApuntador = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+            ValDer.Texto += '\n'+TemporalContador +' = H;';
+            ValDer.Texto += '\n'+TemporalApuntador +' = H;';
+            TipoResultante = 'cadena';
+            ValDer.TipoDato =='cadena';
+            let EtiquetaVerdadero = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+            let EtiquetaSalida = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+            ValDer.Texto += '\nif('+ValDer.Temporal+' == 1) goto '+EtiquetaVerdadero+';';
+            ValDer.Texto += '\nHeap['+TemporalContador    +'] = 102;';//102 es el ascii de 'f'
+            ValDer.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValDer.Texto += '\nHeap['+TemporalContador+'] =  97;';//97  es el ascii de 'a'
+            ValDer.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValDer.Texto += '\nHeap['+TemporalContador+'] = 108;';//114 es el ascii de 'l'
+            ValDer.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValDer.Texto += '\nHeap['+TemporalContador+'] = 115;';//114 es el ascii de 's'
+            ValDer.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValDer.Texto += '\nHeap['+TemporalContador+'] = 101;';//101 es el ascii de 'e'
+            ValDer.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValDer.Texto += '\nHeap['+TemporalContador+'] = '+ '\0'.charCodeAt(0)+';';
+            ValDer.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValDer.Texto += '\ngoto '+EtiquetaSalida+';'
+            ValDer.Texto += '\n'+EtiquetaVerdadero+':'
+            ValDer.Texto += '\nHeap['+TemporalContador+'] = 116;';//116 es el ascii de 't'
+            ValDer.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValDer.Texto += '\nHeap['+TemporalContador+'] = 114;';//114 es el ascii de 'r'
+            ValDer.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValDer.Texto += '\nHeap['+TemporalContador+'] = 117;';//117 es el ascii de 'u'
+            ValDer.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValDer.Texto += '\nHeap['+TemporalContador+'] = 101;';//101 es el ascii de 'e'
+            ValDer.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValDer.Texto += '\nHeap['+TemporalContador+'] = '+ '\0'.charCodeAt(0)+';';
+            ValDer.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValDer.Texto += '\n'+EtiquetaSalida+':'
+            ValDer.Texto += '\nH = '+TemporalContador+';'
+            ValDer.Temporal = TemporalApuntador;
         }
-        let NuevoTemporal = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+        else if(ValIzq.TipoDato == 'booleano'&& ValDer.TipoDato=='cadena'){
+            //######## Obteniendo si es verdadero o falso ###################
+            for(let i = 0;i<ValIzq.ListaVerdaderos.length;i++){
+                ValIzq.Texto += '\n'+ValIzq.ListaVerdaderos[i]+':';
+            }
+            let NuevoTemporalDer = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+            ValIzq.Temporal = NuevoTemporalDer;
+            ValIzq.Texto+= '\n'+NuevoTemporalDer+' = 1;';
+            let NuevaEtiquetaSalidaDer = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+            ValIzq.Texto+= '\ngoto '+NuevaEtiquetaSalidaDer+';';
+            for(let i = 0;i<ValIzq.ListaFalsos.length;i++){
+                ValIzq.Texto += '\n'+ValIzq.ListaFalsos[i]+':';
+            }            
+            ValIzq.Texto+= '\n'+NuevoTemporalDer+' = 0;';      
+            ValIzq.Texto+= '\n'+NuevaEtiquetaSalidaDer+':';
+            //#########################################################
+            let TemporalContador = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+            let TemporalApuntador = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+            ValIzq.Texto += '\n'+TemporalContador +' = H;';
+            ValIzq.Texto += '\n'+TemporalApuntador +' = H;';
+            TipoResultante = 'cadena';
+            ValIzq.TipoDato =='cadena';
+            let EtiquetaVerdadero = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+            ValIzq.Texto += '\nif('+ValIzq.Temporal+' == 1) goto '+EtiquetaVerdadero+';';
+            ValIzq.Texto += '\nHeap['+TemporalContador    +'] = 102;';//102 es el ascii de 'f'
+            ValIzq.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValIzq.Texto += '\nHeap['+TemporalContador+'] =  97;';//97  es el ascii de 'a'
+            ValIzq.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValIzq.Texto += '\nHeap['+TemporalContador+'] = 108;';//114 es el ascii de 'l'
+            ValIzq.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValIzq.Texto += '\nHeap['+TemporalContador+'] = 115;';//114 es el ascii de 's'
+            ValIzq.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValIzq.Texto += '\nHeap['+TemporalContador+'] = 101;';//101 es el ascii de 'e'
+            ValIzq.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValIzq.Texto += '\nHeap['+TemporalContador+'] = '+ '\0'.charCodeAt(0)+';';
+            ValIzq.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValIzq.Texto += '\ngoto '+EtiquetaSalida+';'
+            ValIzq.Texto += '\n'+EtiquetaVerdadero+':'
+            ValIzq.Texto += '\nHeap['+TemporalContador+'] = 116;';//116 es el ascii de 't'
+            ValIzq.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValIzq.Texto += '\nHeap['+TemporalContador+'] = 114;';//114 es el ascii de 'r'
+            ValIzq.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValIzq.Texto += '\nHeap['+TemporalContador+'] = 117;';//117 es el ascii de 'u'
+            ValIzq.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValIzq.Texto += '\nHeap['+TemporalContador+'] = 101;';//101 es el ascii de 'e'
+            ValIzq.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValIzq.Texto += '\nHeap['+TemporalContador+'] = '+ '\0'.charCodeAt(0)+';';
+            ValIzq.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValIzq.Texto += '\n'+EtiquetaSalida+':'
+            ValIzq.Texto += '\nH = '+TemporalContador+';'
+            ValIzq.Temporal = TemporalApuntador;
+        }
+        else if(ValIzq.TipoDato == 'cadena'&& ValDer.TipoDato=='cadena'){TipoResultante = 'cadena';}
+        else{
+            this.AgregarError('No se pudo obtener el tipo de dato resultante entre los operandos');
+            return;
+        }
         let ValRetorno = new Object();
-        ValRetorno.TipoDato = TipoResultante;
-        ValRetorno.Temporal = NuevoTemporal;
+        ValRetorno.TipoDato = TipoResultante;        
         ValRetorno.Tipo = 'valor';
         ValRetorno.Texto = ValIzq.Texto + ValDer.Texto;
-        ValRetorno.Texto += '\n'+NuevoTemporal+' = '+ValIzq.Temporal+ ' + '+ValDer.Temporal+';';        
+        if(TipoResultante == 'cadena'){
+            let TemporalContador = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+            let TemporalApuntador = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+            let TemporalAuxiliar = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+            let TemporalPosCadena = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+            let EtiquetaRetornoIzq = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+            let EtiquetaRetornoDer = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+            ValRetorno.Texto += '\n'+TemporalContador +' = H;';
+            ValRetorno.Texto += '\n'+TemporalApuntador +' = H;';
+            ValRetorno.Texto += '\n'+TemporalPosCadena +' = '+ValIzq.Temporal+';';
+            ValRetorno.Texto += '\n'+EtiquetaRetornoIzq+':';
+            ValRetorno.Texto += '\n'+TemporalAuxiliar+' = Heap['+TemporalPosCadena+'];';
+            ValRetorno.Texto += '\nHeap['+TemporalContador+'] = '+TemporalAuxiliar+';';
+            ValRetorno.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;';
+            ValRetorno.Texto += '\n'+TemporalPosCadena +' = '+TemporalPosCadena+'+ 1;';            
+            ValRetorno.Texto += '\nif('+TemporalAuxiliar+'!= 0) goto '+EtiquetaRetornoIzq+';';
+            ValRetorno.Texto += '\n'+TemporalContador +' = '+TemporalContador+'- 1;';//Para que sobre escriba el \0
+            ValRetorno.Texto += '\nH = '+TemporalContador+';';
+            ValRetorno.Texto += '\n'+TemporalPosCadena +' = '+ValDer.Temporal+';';
+            ValRetorno.Texto += '\n'+EtiquetaRetornoDer+':';
+            ValRetorno.Texto += '\n'+TemporalAuxiliar+' = Heap['+TemporalPosCadena+'];';
+            ValRetorno.Texto += '\nHeap['+TemporalContador+'] = '+TemporalAuxiliar+';';
+            ValRetorno.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;';
+            ValRetorno.Texto += '\n'+TemporalPosCadena +' = '+TemporalPosCadena+'+ 1;';            
+            ValRetorno.Texto += '\nif('+TemporalAuxiliar+'!= 0) goto '+EtiquetaRetornoDer+';';
+            ValRetorno.Texto += '\nHeap['+TemporalContador+'] = '+ '\0'.charCodeAt(0)+';';
+            ValRetorno.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValRetorno.Texto += '\nH = '+TemporalContador+';'
+            ValRetorno.Temporal = TemporalApuntador;
+        }else{
+            let NuevoTemporal = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+            ValRetorno.Temporal = NuevoTemporal;
+            ValRetorno.Texto += '\n'+NuevoTemporal+' = '+ValIzq.Temporal+ ' + '+ValDer.Temporal+';';
+        }
         return ValRetorno;
     };
     this.type = function(){
@@ -1950,9 +2780,6 @@ function Not_CAAS(x,linea) {
     };
     this.Ejecutar = function(EntornoPadre){
         let ValValor = this.Valor.Ejecutar(EntornoPadre);
-        alert(ValValor);
-        alert(ValValor.Texto);
-        alert(ValValor.Temporal);
         if(ValValor.TipoDato !='booleano'){
             this.AgregarError('Para poder realizar el not (!) si el operando no es booleano');
             return;
@@ -2164,9 +2991,23 @@ function Valor_CAAS(x,y,linea) {
             }
             ValRetorno.Texto+= '\ngoto '+NuevaEtiquetaFalsa+';';
             
-        }if(this.Tipo=='nulo'){
+        }else if(this.Tipo=='nulo'){
             ValRetorno.Temporal = this.Valor;
             ValRetorno.Texto = '';
+        }else if(this.Tipo == 'cadena'){
+            this.Valor = this.Valor.substring(1,this.Valor.length-1);            
+            let TemporalContador = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+            let TemporalApuntador = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+            ValRetorno.Texto += '\n'+TemporalContador +' = H;'
+            ValRetorno.Texto += '\n'+TemporalApuntador +' = H;';            
+            for(let i = 0;i<this.Valor.length;i++){
+                ValRetorno.Texto += '\nHeap['+(TemporalContador)+'] = '+this.Valor.charCodeAt(i)+';';
+                ValRetorno.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            }
+            ValRetorno.Texto += '\nHeap['+TemporalContador+'] = '+ '\0'.charCodeAt(0)+';';
+            ValRetorno.Texto += '\n'+TemporalContador +' = '+TemporalContador+'+ 1;'
+            ValRetorno.Texto += '\nH = '+TemporalContador+';'
+            ValRetorno.Temporal = TemporalApuntador;
         }else{
             ValRetorno.Temporal = this.Valor;
             ValRetorno.Texto = '';
@@ -2192,8 +3033,43 @@ function Variable_CAAS(x,linea) {
         ErroresPadre.AgregarErrores(this.Errores);
     };
     this.Ejecutar = function(EntornoPadre){
-        //Revisar si la variable existe y retornar el nombre
-        //Revisar la cantidad de parametros que tienen que correspondan a los de la funcion y revisar si existe el nombre
+        let Ambito = EntornoPadre.getAmbito();
+        let Simbolo =null;
+        if(this.Nombre.length==1){
+            Simbolo = EntornoPadre.getSimboloVariable(Ambito,this.Nombre[0]);
+        }else{
+            
+        }
+        if(Simbolo==null){
+            this.AgregarError('No se encontro la variable '+this.Nombre);
+            return;
+        }
+        let ValRetorno = new Object();
+        ValRetorno.TipoDato = Simbolo.getTipoDato().TipoDato;
+        ValRetorno.Tipo = Simbolo.getTipoDato().Tipo;
+        let TemporalValorStack = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+        let TemporalPosicionStack = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+        ValRetorno.Texto = '';
+        ValRetorno.Texto += '\n'+TemporalPosicionStack+' = P + '+Simbolo.getPosicion()+';';
+        ValRetorno.Texto += '\n'+TemporalValorStack + ' = Stack['+TemporalPosicionStack+'];';        
+        if(ValRetorno.TipoDato=='booleano'&&ValRetorno.Tipo=='valor'){
+            ValRetorno.Temporal = TemporalValorStack;
+            ValRetorno.ListaVerdaderos = [];
+            ValRetorno.ListaFalsos = [];
+            let NuevaEtiquetaVerdadera = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+            let NuevaEtiquetaFalsa = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+            ValRetorno.ListaVerdaderos.push(NuevaEtiquetaVerdadera);
+            ValRetorno.ListaFalsos.push(NuevaEtiquetaFalsa);
+            ValRetorno.Texto+= '\nif('+TemporalValorStack+'==1) goto '+NuevaEtiquetaVerdadera+';';
+            ValRetorno.Texto+= '\ngoto '+NuevaEtiquetaFalsa+';';
+        }else if(ValRetorno.TipoDato=='nulo'&&ValRetorno.Tipo=='valor'){
+            ValRetorno.Temporal = TemporalValorStack;
+        }else if(ValRetorno.TipoDato == 'cadena'&&ValRetorno.Tipo=='valor'){
+            ValRetorno.Temporal = TemporalValorStack;
+        }else if(ValRetorno.Tipo=='valor'){
+            ValRetorno.Temporal = TemporalValorStack;
+        }
+        return ValRetorno;
     };
     this.type = function(){
         return 'variable';
@@ -2218,10 +3094,53 @@ function LlamadaFuncion_CAAS(x,y,linea) {
     };
     this.Ejecutar = function(EntornoPadre){
         let ValDimensiones = [];
+        let Simbolo =null;
         for(let i=0;i<this.Parametros.length;i++){
             ValDimensiones.push(this.Parametros[i].Ejecutar(EntornoPadre));
         }
-        //Revisar la cantidad de parametros que tienen que correspondan a los de la funcion y revisar si existe el nombre
+        if(this.Nombre.length==1){//Se busca en la misma clase
+            Simbolo = EntornoPadre.getMetodo(EntornoPadre.Ambito, this.Nombre,ValDimensiones);
+        }else{
+            
+        }
+        if(Simbolo ==undefined||Simbolo==null){
+            this.AgregarError('No se encontro el metodo '+this.Nombre)
+            return;
+        }
+        let ValRetorno = new Object();
+        ValRetorno.TipoDato = Simbolo.getTipoDato().TipoDato;
+        ValRetorno.Tipo = Simbolo.getTipoDato().Tipo;
+        ValRetorno.Texto = '';
+        for(let i = 0; i <ValDimensiones.length;i++){
+            if(ValDimensiones[i].TipoDato == 'booleano'){
+                for(let j = 0;j<ValDimensiones[i].ListaVerdaderos.length;j++){
+                    ValDimensiones[i].Texto += '\n'+ValDimensiones[i].ListaVerdaderos[j]+':';
+                }
+                let NuevoTemporalValDimensiones = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+                ValDimensiones[i].Temporal = NuevoTemporalValDimensiones;
+                ValDimensiones[i].Texto+= '\n'+NuevoTemporalValDimensiones+' = 1;';
+                let NuevaEtiquetaSalidaValDimensiones = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+                ValDimensiones[i].Texto+= '\ngoto '+NuevaEtiquetaSalidaValDimensiones+';';
+                for(let j = 0;j<ValDimensiones[i].ListaFalsos.length;j++){
+                    ValDimensiones[i].Texto += '\n'+ValDimensiones[i].ListaFalsos[j]+':';
+                }            
+                ValDimensiones[i].Texto+= '\n'+NuevoTemporalValDimensiones+' = 0;';      
+                ValDimensiones[i].Texto+= '\n'+NuevaEtiquetaSalidaValDimensiones+':';
+            }
+            ValRetorno.Texto += ValDimensiones[i].Texto;
+        }
+        ValRetorno.Temporal = 't'+EntornoPadre.Temporales.getNuevoTemporal();        
+        for(let i = 0; i <ValDimensiones.length;i++){            
+            TemporalPosicionStack = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+            ValRetorno.Texto += '\n'+TemporalPosicionStack+' = P + '+Simbolo.getSize()+';';
+            ValRetorno.Texto += '\n'+TemporalPosicionStack+' = '+TemporalPosicionStack+' + '+i+';';
+            ValRetorno.Texto += '\nStack['+TemporalPosicionStack+'] = '+ValDimensiones[i].Temporal+';';
+        }
+        ValRetorno.Texto += '\nP = P + '+Simbolo.getSize()+';';
+        ValRetorno.Texto += '\ncall '+Simbolo.getAmbito_Texto()+'_'+Simbolo.getIdentificador()+';';
+        ValRetorno.Texto += '\nP = P - '+Simbolo.getSize()+';';
+        //Tengo que agregar el return
+        return ValRetorno;
     };
     this.type = function(){
         return 'llamadafuncion';
@@ -2256,86 +3175,232 @@ function VariableArreglo_CAAS(x,y,linea) {
     };
 }
 
-//######################
-//## LISTA DE VALORES ##
-//######################
-function ListaValores_CAAS(x,linea) {
-    this.Linea = linea;
-    this.Lista = x;
-    this.Errores = new Errores3D();
-    this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Lista de valores',this.linea);
-    };
-    this.RecuperarErrores = function(ErroresPadre){
-        ErroresPadre.AgregarErrores(this.Errores);        
-        if(this.Lista!=null){
-            for(let i =0;i<this.Lista.length;i++){
-                this.Lista[i].RecuperarErrores(ErroresPadre);
-            }
-        }
-        //Si alguno de los valores es un valor booleano
-        /*if(ValValor.TipoDato == 'booleano'){
-            for(let i = 0;i<ValValor.ListaVerdaderos.length;i++){
-                ValValor.Texto += '\n'+ValValor.ListaVerdaderos[i]+':';
-            }
-            let NuevoTemporalValValor = 't'+EntornoPadre.Temporales.getNuevoTemporal();
-            ValValor.Temporal = NuevoTemporalValValor;
-            ValValor.Texto+= '\n'+NuevoTemporalValValor+' = 1;';
-            let NuevaEtiquetaSalidaValValor = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
-            ValValor.Texto+= '\ngoto '+NuevaEtiquetaSalidaValValor+';';
-            for(let i = 0;i<ValValor.ListaFalsos.length;i++){
-                ValValor.Texto += '\n'+ValValor.ListaFalsos[i]+':';
-            }            
-            ValValor.Texto+= '\n'+NuevoTemporalValValor+' = 0;';      
-            ValValor.Texto+= '\n'+NuevaEtiquetaSalidaValValor+':';
-        }*/
-    };
-    this.Ejecutar = function(EntornoPadre){
-        let Valores = [];
-        for(let i=0;i<this.Lista.length;i++){
-            Valores.push(this.Lista[i].Ejecutar(EntornoPadre));
-        }
-    };
-    this.type = function(){
-        return 'listavalores';
-    };
-}
 
 //#####################################################
 //## MANEJO DE TODO LO NECESARIO PARA PODER TRADUCIR ##
 //#####################################################
 
-function Simbolo_CAAS(id,TipoSimbolo,TipoDato){
-    //TIPOS DE SIMBOLOS(Tipo)
-    //variables
-    //arreglos
-    //funciones
-    //Tipo de dato guardado
-    //int  = 0
-    //double = 1
-    //cadena = 2
-    //char = 3
-    //booleano = 4
-    //void = 5
-    //Objeto = 5;
+function Simbolo_CAAS(id,Tipo,TipoDato,Size,Posicion,Ambito,Acceso,Estatico,final,abstract,Extiende,Dimensiones,Parametros){
     this.Identificador = id;
-    this.Valor = undefined;
-    this.ListaValores = undefined;
-    this.TipoDato = TipoDato;
-    this.Dimensiones =[];
-    this.Funcion = undefined;
-    this.Tipo = TipoSimbolo;
-    this.setFuncion = function(funcion){
-        this.Funcion = funcion;
+    this.Tipo = Tipo;
+    this.TipoDato= TipoDato;
+    this.Size = Size;
+    this.Posicion = Posicion;
+    this.Ambito = Ambito;
+    this.Acceso = Acceso;
+    this.Estatico = Estatico;
+    this.Final = final;
+    this.Abstract = abstract;
+    this.Extiende = Extiende;    
+    this.Dimensiones = Dimensiones;
+    this.Parametros = Parametros;
+    this.getIdentificador = function(){
+        if(this.Identificador==null||this.Identificador==undefined){
+            return 'null';
+        }
+        return this.Identificador;
     }
-    this.setValor=function(valor){
-        this.Valor = valor;
+    this.getTipo = function(){
+        if(this.Tipo==null||this.Tipo==undefined){
+            return 'null';
+        }
+        return this.Tipo;
     }
-    this.setArreglo=function(lista,dimensiones){
-        this.ListaValores = lista;
-        this.Dimension = dimensiones;
-        this.TipoDato = tipovalores;
+    this.getTipoDato = function(){
+        if(this.TipoDato==null||this.TipoDato==undefined){
+            return 'null';
+        }
+        return this.TipoDato;
     }
+    this.getTipoDato_Texto = function(){
+        if(this.TipoDato==null||this.TipoDato==undefined){
+            return 'null';
+        }
+        return this.TipoDato.Tipo + '_'+this.TipoDato.TipoDato;
+    }
+    this.getSize= function(){
+        if(this.Size==null||this.Size==undefined){
+            return 'null';
+        }
+        return this.Size;
+    }
+    this.getPosicion = function(){
+        if(this.Posicion==null||this.Posicion==undefined){
+            return 'null';
+        }
+        return this.Posicion;
+    }
+    this.getAmbito_Texto = function(){
+        let Texto = '';
+        if(this.Ambito==null||this.Ambito==undefined){
+            return 'null';
+        }
+        for(let i = 0;i<Ambito.length;i++){
+            if(i==0){
+                Texto += Ambito[i];
+            }else{
+                Texto += '_'+Ambito[i];
+            }
+        }
+        return Texto;
+    }
+    this.getAmbito = function(){
+        if(this.Ambito==null||this.Ambito==undefined){
+            return undefined;
+        }        
+        return this.Ambito;
+    }
+    this.getAcceso = function(){
+        if(this.Acceso==null||this.Acceso==undefined){
+            return 'null';
+        }
+        return this.Acceso;
+    }
+    this.getEstatico = function(){
+        if(this.Estatico==null||this.Estatico==undefined){
+            return 'null';
+        }
+        return this.Estatico;
+    }
+    this.getFinal = function(){
+        if(this.Final==null||this.Final==undefined){
+            return 'null';
+        }
+        return this.Final;
+    }
+    this.getAbstract = function(){
+        if(this.Abstract==null||this.Abstract==undefined){
+            return 'null';
+        }
+        return this.Abstract;
+    }
+    this.getExtiende = function(){
+        if(this.Extiende==null||this.Extiende==undefined){
+            return 'null';
+        }
+        return this.Extiende;
+    }
+    this.getDimensiones = function(){
+        if(this.Dimensiones==null||this.Dimensiones==undefined){
+            return 'null';
+        }
+        return this.Dimensiones;
+    }
+    this.getParametros = function(){
+        if(this.Parametros==null||this.Parametros==undefined){
+            return 'null';
+        }
+        return this.Parametros
+    }
+    this.Errores = new Errores3D();
+    this.AgregarError = function(descripcion){
+        this.Errores.Agregar('semantico',descripcion,'Simbolo',-1);
+    };
+    this.RecuperarErrores = function(ErroresPadre){
+        ErroresPadre.AgregarErrores(this.Errores);
+    };
+}
+
+function Entorno_CAAS(){
+    this.Ambito = [];
+    this.Nodos = [];
+    this.Etiquetas = new Manejador_Etiquetas();
+    this.Temporales = new Manejador_Temporales();
+    this.AgregarSimbolo = function(id,Tipo,TipoDato,Size,Posicion,Ambito,Acceso,Estatico,final,abstract,Extiende,Dimensiones,Parametros){        
+        let simbolo = new Simbolo_CAAS(id,Tipo,TipoDato,Size,Posicion,Ambito,Acceso,Estatico,final,abstract,Extiende,Dimensiones,Parametros);
+        this.Nodos.push(simbolo);
+    }
+    this.VerTabla = function(){
+        for(let i = 0;i<this.Nodos.length;i++){
+            alert('Id:'+ this.Nodos[i].getIdentificador()+', Tipo:'+ this.Nodos[i].getTipo()+', TipoDato:'+ this.Nodos[i].getTipoDato_Texto()+', Size:'+ this.Nodos[i].getSize()+', Posicion:'+ this.Nodos[i].getPosicion()+' Ambito: '+this.Nodos[i].getAmbito_Texto());
+        }
+    }
+    this.getSimboloVariable = function(Ambito,Identificador){
+        for(let i = 0;i<this.Nodos.length&&Ambito.length>0;i++){
+            if(this.Nodos[i].getTipo() =='variable'){
+                if(Ambito.length == this.Nodos[i].getAmbito().length){
+                    let MismoAmbito = true;
+                    for(let j = 0;j<Ambito.length&&MismoAmbito;j++){
+                        if(Ambito[j] != this.Nodos[i].getAmbito()[j]){
+                            MismoAmbito = false;
+                        }
+                    }
+                    if(MismoAmbito){
+                        if(this.Nodos[i].getIdentificador()==Identificador){
+                            return this.Nodos[i];
+                        }          
+                    }
+                }
+            }
+            if((i+1)==this.Nodos.length){
+                Ambito.pop();
+                i=-1;
+            }
+        }
+        return null;
+    }
+    this.getMetodo = function(Ambito,Identificador,ParametrosBuscados){
+        for(let i = 0;i<this.Nodos.length&&Ambito.length>0;i++){
+            if(this.Nodos[i].getTipo() =='metodo'){
+                if(Ambito.length == this.Nodos[i].getAmbito().length){
+                    let MismoAmbito = true;
+                    for(let j = 0;j<Ambito.length&&MismoAmbito;j++){
+                        if(Ambito[j] != this.Nodos[i].getAmbito()[j]){
+                            MismoAmbito = false;
+                        }
+                    }
+                    if(MismoAmbito){
+                        if(this.Nodos[i].getIdentificador()==Identificador){
+                            let ParametrosMetodo = this.Nodos[i].getParametros();
+                            let MismosParametros = true;
+                            if(ParametrosBuscados.length == ParametrosMetodo.length){
+                                for(let j = 0; j <ParametrosBuscados.length&&MismosParametros;j++){
+                                    if(ParametrosBuscados[j].Tipo != ParametrosMetodo[j].Tipo.Tipo || ParametrosBuscados[j].TipoDato != ParametrosMetodo[j].Tipo.TipoDato){
+                                        MismosParametros = false;
+                                    }
+                                }                                
+                                if(MismosParametros){
+                                    return this.Nodos[i];
+                                }
+                            }
+                        }          
+                    }
+                }
+            }
+            if((i+1)==this.Nodos.length){
+                Ambito.pop();
+                i=-1;
+            }
+        }
+    }
+    this.setAmbito = function(Ambito){
+        this.Ambito = Ambito;
+    }
+    this.getAmbito = function(){
+        return this.Ambito;
+    }
+}
+
+function Manejador_Temporales(){
+    this.Numero = 0;
+    this.getNuevoTemporal = function(){
+        this.Numero++;
+        return this.Numero;
+    }
+}
+
+function Manejador_Etiquetas(){
+    this.Numero = 0;
+    this.getNuevaEtiqueta = function(){
+        this.Numero++;
+        return this.Numero;
+    }
+}
+
+
+///CALCULO DE LA POSICION EN UN ARREGLO
+
+/*
     this.setValorArreglo = function(valor, indices){
         //Debo ver de que tipo es el valor y si es el mismo que el arreglo
         let posicion = 0;
@@ -2364,9 +3429,6 @@ function Simbolo_CAAS(id,TipoSimbolo,TipoDato){
             }
         }
         this.ListaValores[posicion]=valor;
-    }
-    this.getValor= function(){
-        return this.Valor;
     }
     this.getValorArreglo=function(indices){
         let posicion = 0;
@@ -2399,47 +3461,12 @@ function Simbolo_CAAS(id,TipoSimbolo,TipoDato){
         }
         return this.ListaValores[posicion];
     }
-    this.getArreglo = function(){
-        return this.ListaValores;
-    }
-    this.getFuncion = function(){
-        return this.Funcion;        
-    }
-    this.getIdentificador = function(){
-        return this.Identificador;
-    }
-    this.getSize = function(){
-        if(this.Tipo = 'arreglo'){
-            return this.ListaValores.length;
-        }else{
-            return 1;
-        }
-    }
-    this.getTipoSimbolo = function(){
-        return this.Tipo;
-    }
-    this.getTipoDato = function(){
-        return this.TipoDato;
-    }
-    this.isValorInicializado=function(){
-        return this.Valor ==undefined&&this.ListaValores==undefined&&this.Funcion == undefined;
-    }
-    this.Errores = new Errores3D();
-    this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Simbolo',-1);
-    };
-    this.RecuperarErrores = function(ErroresPadre){
-        ErroresPadre.AgregarErrores(this.Errores);
-    };
-}
+    */
 
-function Entorno_CAAS(entornopadre){
-    this.Nodos = [];
-    this.Etiquetas = new Manejador_Etiquetas();
-    this.Temporales = new Manejador_Temporales();
-    this.Heap = new Heap_CAAS();
-    this.Stack = new Stack_CAAS();
-    this.TablaPadre = entornopadre;
+
+    /// LO QUE QUITE DE ENTORNO
+
+    /*this.TablaPadre = entornopadre;
     this.NivelDetener = 0;
     this.NivelRetornar = 0;
     this.ValorRetorno = null;
@@ -2631,47 +3658,4 @@ function Entorno_CAAS(entornopadre){
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
-    };
-}
-
-function Manejador_Temporales(){
-    this.Numero = 0;
-    this.TemporalesVerdaderos = [];
-    this.TemporalesFalsos = [];
-    this.TemporalRespuesta = [];
-    this.getNuevoTemporal = function(){
-        this.Numero++;
-        return this.Numero;
-    }
-}
-
-function Manejador_Etiquetas(){
-    this.Numero = 0;
-    this.getNuevaEtiqueta = function(){
-        this.Numero++;
-        return this.Numero;
-    }
-}
-
-function Heap_CAAS(){
-    this.puntero = 0;
-    this.getPosicionActual=function(){
-        return this.puntero;
-    }
-    this.ReservarEspacio = function(tam){
-        this.puntero +=tam;
-    }
-}
-
-function Stack_CAAS(){
-    this.puntero = 0;
-    this.getPosicionActual= function(){
-        return this.puntero;
-    }
-    this.AumentarStack = function(tam){
-        this.puntero = this.puntero+tam;
-    }
-    this.DesminuirStack = function(tam){
-        this.puntero = this.puntero-tam;
-    }
-}
+    };*/
