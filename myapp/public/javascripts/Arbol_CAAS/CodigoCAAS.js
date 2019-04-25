@@ -359,14 +359,79 @@ function Println_CAAS(x,linea){
         this.Valor.RecuperarErrores(ErroresPadre);
     };
     this.Ejecutar = function(EntornoPadre){
-        let cadena = "";
-        let ValValor = String(this.Valor.Ejecutar(EntornoPadre));
-        for(let i = 0; i<ValValor.length;i++){
-            //Aqui debo meter un temporal, pero como todavia no los tengo pos que se le va a hacer guapo
-            cadena += '\nprint("%c",'+ValValor.charCodeAt(i)+');'
-            cadena += '\nprint("%c",10);'
+        let Texto = "";
+        let ValValor = this.Valor.Ejecutar(EntornoPadre);        
+        if(ValValor.Tipo == 'valor'){
+            Texto += ValValor.Texto;
+            if(ValValor.TipoDato == 'decimal'){
+                Texto += '\nprint("%d",'+ValValor.Temporal+');'
+            }else if(ValValor.TipoDato =='entero'){
+                Texto += '\nprint("%e",'+ValValor.Temporal+');'
+            }else if(ValValor.TipoDato == 'caracter'){
+                Texto += '\nprint("%c",'+ValValor.Temporal+');'
+            }else if(ValValor.TipoDato =='booleano'){
+                let EtiquetaVerdadero = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+                let EtiquetaFalso = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+                let EtiquetaSalida = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+                Texto += '\nif('+ValValor.Temporal +' == 1) goto '+EtiquetaVerdadero+';'
+                Texto += '\ngoto '+EtiquetaFalso+';';
+                Texto += '\n'+EtiquetaVerdadero+':';
+                Texto += '\nprint("%c",116);//t';
+                Texto += '\nprint("%c",114);//r';
+                Texto += '\nprint("%c",117);//u';
+                Texto += '\nprint("%c",101);//e';
+                Texto +=  '\ngoto '+EtiquetaSalida+';';
+                Texto += '\n'+EtiquetaFalso+':';
+                Texto += '\nprint("%c",102);//f';
+                Texto += '\nprint("%c",97);//a';
+                Texto += '\nprint("%c",108);//l';
+                Texto += '\nprint("%c",115);//s';
+                Texto += '\nprint("%c",101);//e';
+                Texto += '\n'+EtiquetaSalida+':';
+            }else if(ValValor.TipoDato == 'cadena'){
+                let EtiquetaRetorno = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+                let EtiquetaSalida = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+                let EtiquetaEntero = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+                let EtiquetaDecimal = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+                let TemporalPosicion = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+                let TemporalValor = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+                Texto += '\n'+TemporalPosicion+' = '+ValValor.Temporal+';';
+                Texto += '\n'+TemporalValor+' = 0;';
+                Texto += '\n'+EtiquetaRetorno+':';
+                Texto += '\n'+TemporalValor+' = Heap['+TemporalPosicion+'];'
+                Texto += '\n'+TemporalPosicion+' = '+TemporalPosicion +'+ 1;'
+                Texto += '\nif('+TemporalValor+' == 0) goto '+EtiquetaSalida+';';
+                Texto += '\nif('+TemporalValor+' == -1) goto '+EtiquetaEntero+';';
+                Texto += '\nif('+TemporalValor+' == -2) goto '+EtiquetaDecimal+';';
+                Texto += '\nprint("%c",'+TemporalValor+');'
+                Texto += '\ngoto '+EtiquetaRetorno+';';
+                Texto += '\n'+EtiquetaEntero+':';
+                Texto += '\n'+TemporalValor+' = Heap['+TemporalPosicion+'];'
+                Texto += '\n'+TemporalPosicion+' = '+TemporalPosicion +'+ 1;'
+                Texto += '\nprint("%e",'+TemporalValor+');'                
+                Texto += '\ngoto '+EtiquetaRetorno+';';
+                Texto += '\n'+EtiquetaDecimal+':';
+                Texto += '\n'+TemporalValor+' = Heap['+TemporalPosicion+'];'
+                Texto += '\n'+TemporalPosicion+' = '+TemporalPosicion +'+ 1;'
+                Texto += '\nprint("%d",'+TemporalValor+');';
+                Texto += '\ngoto '+EtiquetaRetorno+';';
+                Texto += '\n'+EtiquetaSalida+':';
+            }else{
+                this.AgregarError('No se puede hacer conversion a tipo decimal desde uno de tipo '+ValValor.TipoDato);
+                return '';
+            }
+        }else{
+            Texto += '\nprint("%c",91);//[';
+            Texto += '\nprint("%c",79);//O';
+            Texto += '\nprint("%c",98);//b';
+            Texto += '\nprint("%c",106);//j';
+            Texto += '\nprint("%c",101);//e';
+            Texto += '\nprint("%c",99);//c';
+            Texto += '\nprint("%c",116);//t';
+            Texto += '\nprint("%c",93);//]';
         }
-        return cadena;
+        Texto += '\nprint("%c",10);';
+        return Texto;
     };
     this.type = function(){
         return 'println';
@@ -411,24 +476,13 @@ function For_CAAS(x,y,z,i,linea){
         ErroresPadre.AgregarErrores(this.Errores);
     };
     this.Ejecutar = function(EntornoPadre){
-        let ValCondicion = this.Valor.Ejecutar(EntornoPadre);
-        let ValIterador = this.Valor.Ejecutar(EntornoPadre);
-        if(ValCondicion.TipoDato == 'booleano'){
-            for(let i = 0;i<ValCondicion.ListaVerdaderos.length;i++){
-                ValCondicion.Texto += '\n'+ValCondicion.ListaVerdaderos[i]+':';
-            }
-            let NuevoTemporalValCondicion = 't'+EntornoPadre.Temporales.getNuevoTemporal();
-            ValCondicion.Temporal = NuevoTemporalValCondicion;
-            ValCondicion.Texto+= '\n'+NuevoTemporalValCondicion+' = 1;';
-            let NuevaEtiquetaSalidaValCondicion = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
-            ValCondicion.Texto+= '\ngoto '+NuevaEtiquetaSalidaValCondicion+';';
-            for(let i = 0;i<ValCondicion.ListaFalsos.length;i++){
-                ValCondicion.Texto += '\n'+ValCondicion.ListaFalsos[i]+':';
-            }            
-            ValCondicion.Texto+= '\n'+NuevoTemporalValCondicion+' = 0;';      
-            ValCondicion.Texto+= '\n'+NuevaEtiquetaSalidaValCondicion+':';
+        let ValInicio = this.Inicio.Ejecutar(EntornoPadre);
+        let ValCondicion = this.Condicion.Ejecutar(EntornoPadre);
+        let ValIterador = this.Iterador.Ejecutar(EntornoPadre);
+        if(ValCondicion.Tipo != 'valor' || ValCondicion.TipoDato !='booleano'){
+            this.AgregarError('La condicion debe dar como resultado un valor booleano');
+            return '';
         }
-
         if(ValIterador.TipoDato == 'booleano'){
             for(let i = 0;i<ValIterador.ListaVerdaderos.length;i++){
                 ValIterador.Texto += '\n'+ValIterador.ListaVerdaderos[i]+':';
@@ -444,6 +498,22 @@ function For_CAAS(x,y,z,i,linea){
             ValIterador.Texto+= '\n'+NuevoTemporalValIterador+' = 0;';
             ValIterador.Texto+= '\n'+NuevaEtiquetaSalidaValIterador+':';
         }
+        let EtiquetaRetorno = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+        let TextoInicio = '';
+        TextoInicio += ValInicio;
+        TextoInicio += '\n'+EtiquetaRetorno+':';
+        ValCondicion.Texto = TextoInicio + ValCondicion.Texto;
+        //######## Obteniendo si es verdadero o falso ###################
+        for(let i = 0;i<ValCondicion.ListaVerdaderos.length;i++){
+            ValCondicion.Texto += '\n'+ValCondicion.ListaVerdaderos[i]+':';
+        }
+        ValCondicion.Texto += this.BloqueInstrucciones.Ejecutar(EntornoPadre);
+        ValCondicion.Texto += '\n'+ValIterador.Texto;
+        ValCondicion.Texto += '\ngoto '+EtiquetaRetorno+';';
+        for(let i = 0;i<ValCondicion.ListaFalsos.length;i++){
+            ValCondicion.Texto += '\n'+ValCondicion.ListaFalsos[i]+':';
+        }
+        return ValCondicion.Texto;
     };
     this.type = function(){
         return 'for';
@@ -464,7 +534,25 @@ function DoWhile_CAAS(x,y,linea){
         ErroresPadre.AgregarErrores(this.Errores);
     };
     this.Ejecutar = function(EntornoPadre){
-        
+        let ValCondicion = this.Condicion.Ejecutar(EntornoPadre);
+        if(ValCondicion.Tipo != 'valor' || ValCondicion.TipoDato !='booleano'){
+            this.AgregarError('La condicion debe dar como resultado un valor booleano');
+            return '';
+        }
+        let EtiquetaRetorno = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+        let EtiquetaPrimeraVez = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+        ValCondicion.Texto = '\ngoto '+EtiquetaPrimeraVez+';\n'+EtiquetaRetorno+':'+ValCondicion.Texto;
+        //######## Obteniendo si es verdadero o falso ###################
+        for(let i = 0;i<ValCondicion.ListaVerdaderos.length;i++){
+            ValCondicion.Texto += '\n'+ValCondicion.ListaVerdaderos[i]+':';
+        }
+        ValCondicion.Texto += '\n'+EtiquetaPrimeraVez+':';
+        ValCondicion.Texto += this.BloqueInstrucciones.Ejecutar(EntornoPadre);
+        ValCondicion.Texto += '\ngoto '+EtiquetaRetorno+';';
+        for(let i = 0;i<ValCondicion.ListaFalsos.length;i++){
+            ValCondicion.Texto += '\n'+ValCondicion.ListaFalsos[i]+':';
+        }
+        return ValCondicion.Texto;
     };
     this.type = function(){
         return 'do_while';
@@ -485,7 +573,23 @@ function While_CAAS(x,y,linea){
         ErroresPadre.AgregarErrores(this.Errores);
     };
     this.Ejecutar = function(EntornoPadre){
-        
+        let ValCondicion = this.Condicion.Ejecutar(EntornoPadre);
+        if(ValCondicion.Tipo != 'valor' || ValCondicion.TipoDato !='booleano'){
+            this.AgregarError('La condicion debe dar como resultado un valor booleano');
+            return '';
+        }
+        let EtiquetaRetorno = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+        ValCondicion.Texto = '\n'+EtiquetaRetorno+':'+ValCondicion.Texto;
+        //######## Obteniendo si es verdadero o falso ###################
+        for(let i = 0;i<ValCondicion.ListaVerdaderos.length;i++){
+            ValCondicion.Texto += '\n'+ValCondicion.ListaVerdaderos[i]+':';
+        }
+        ValCondicion.Texto += this.BloqueInstrucciones.Ejecutar(EntornoPadre);
+        ValCondicion.Texto += '\ngoto '+EtiquetaRetorno+';';
+        for(let i = 0;i<ValCondicion.ListaFalsos.length;i++){
+            ValCondicion.Texto += '\n'+ValCondicion.ListaFalsos[i]+':';
+        }
+        return ValCondicion.Texto;
     };
     this.type = function(){
         return 'while';
@@ -633,7 +737,29 @@ function If_CAAS(x,y,z,linea) {
         ErroresPadre.AgregarErrores(this.Errores);
     };
     this.Ejecutar = function(EntornoPadre){
-        
+        let ValCondicion = this.Condicion.Ejecutar(EntornoPadre);
+        if(ValCondicion.Tipo != 'valor' || ValCondicion.TipoDato !='booleano'){
+            this.AgregarError('La condicion debe dar como resultado un valor booleano');
+            return '';
+        }
+        let TextoVerdadero = this.Instrucciones.Ejecutar(EntornoPadre);
+        let TextoSino = '';
+        if(this.Sino!=null){
+            TextoSino = this.Sino.Ejecutar(EntornoPadre);
+        }
+        //######## Obteniendo si es verdadero o falso ###################
+        for(let i = 0;i<ValCondicion.ListaVerdaderos.length;i++){
+            ValCondicion.Texto += '\n'+ValCondicion.ListaVerdaderos[i]+':';
+        }
+        ValCondicion.Texto += TextoVerdadero;
+        let NuevaEtiquetaSalidaDer = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+        ValCondicion.Texto += '\ngoto '+NuevaEtiquetaSalidaDer+';';
+        for(let i = 0;i<ValCondicion.ListaFalsos.length;i++){
+            ValCondicion.Texto += '\n'+ValCondicion.ListaFalsos[i]+':';
+        }
+        ValCondicion.Texto += TextoSino;
+        ValCondicion.Texto+= '\n'+NuevaEtiquetaSalidaDer+':';
+        return ValCondicion.Texto;
     };
     this.type = function(){
         return 'if';
@@ -891,15 +1017,15 @@ function SubDeclaracionVariable_CAAS(x,y,z,linea) {
         ErroresPadre.AgregarErrores(this.Errores);
     };
     this.Ejecutar = function(EntornoPadre,TipoDato,Visibilidad,static,final,abstract,PosicionRelativaStack,Ambito,PrimeraPasada){
-        
+        let ValValor = null;
         if(PrimeraPasada==undefined){
             if(this.Dimensiones == 0){
                 EntornoPadre.AgregarSimbolo(this.Identificador,'variable',TipoDato,1,PosicionRelativaStack,Array.from(Ambito),Visibilidad,static,final,abstract,false,0,null);
-            }else{//Debo inicializar el arreglo con 0 elementos en heap, en un rato lo hago :v
+            }else{
                 EntornoPadre.AgregarSimbolo(this.Identificador,'arreglo',TipoDato,1,PosicionRelativaStack,Array.from(Ambito),Visibilidad,static,final,abstract,false,this.Dimensiones,null);
             }
             if(this.Valor!=undefined){
-                let ValValor = this.Valor.Ejecutar(EntornoPadre);
+                ValValor = this.Valor.Ejecutar(EntornoPadre);
                 if(ValValor.TipoDato == 'booleano'){
                     for(let i = 0;i<ValValor.ListaVerdaderos.length;i++){
                         ValValor.Texto += '\n'+ValValor.ListaVerdaderos[i]+':';
@@ -917,8 +1043,53 @@ function SubDeclaracionVariable_CAAS(x,y,z,linea) {
                 }
                 let NuevoTemporalValValor = 't'+EntornoPadre.Temporales.getNuevoTemporal();
                 ValValor.Texto += '\n'+NuevoTemporalValValor+' = P + '+PosicionRelativaStack+';'
-                ValValor.Texto += '\nStack['+NuevoTemporalValValor+'] = '+ValValor.Temporal+';'
-                return ValValor.Texto;
+                ValValor.Texto += '\nStack['+NuevoTemporalValValor+'] = '+ValValor.Temporal+';'                
+            }else{
+                if(this.Dimensiones ==0){
+                    if(TipoDato.TipoDato == 'entero'&&TipoDato.Tipo == 'valor'){
+                        this.Valor = new Valor_CAAS('entero',0,this.Linea);
+                        ValValor = this.Valor.Ejecutar(EntornoPadre);
+                    }else if(TipoDato.TipoDato == 'decimal'&&TipoDato.Tipo == 'valor'){
+                        this.Valor = new Valor_CAAS('decimal',0,this.Linea);
+                        ValValor = this.Valor.Ejecutar(EntornoPadre);
+                    }else if(TipoDato.TipoDato == 'booleano'&&TipoDato.Tipo == 'valor'){
+                        this.Valor = new Valor_CAAS('booleano',0,this.Linea);
+                        ValValor = this.Valor.Ejecutar(EntornoPadre);
+                        for(let i = 0;i<ValValor.ListaVerdaderos.length;i++){
+                            ValValor.Texto += '\n'+ValValor.ListaVerdaderos[i]+':';
+                        }
+                        let NuevoTemporalValValor = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+                        ValValor.Temporal = NuevoTemporalValValor;
+                        ValValor.Texto+= '\n'+NuevoTemporalValValor+' = 1;';
+                        let NuevaEtiquetaSalidaValValor = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+                        ValValor.Texto+= '\ngoto '+NuevaEtiquetaSalidaValValor+';';
+                        for(let i = 0;i<ValValor.ListaFalsos.length;i++){
+                            ValValor.Texto += '\n'+ValValor.ListaFalsos[i]+':';
+                        }            
+                        ValValor.Texto+= '\n'+NuevoTemporalValValor+' = 0;';      
+                        ValValor.Texto+= '\n'+NuevaEtiquetaSalidaValValor+':';
+                    }else if(TipoDato.TipoDato == 'caracter'&&TipoDato.Tipo == 'valor'){
+                        this.Valor = new Valor_CAAS('caracter',0,this.Linea);
+                        ValValor = this.Valor.Ejecutar(EntornoPadre);
+                    }else if(TipoDato.TipoDato == 'cadena'&&TipoDato.Tipo == 'valor'){
+                        this.Valor = new Valor_CAAS('cadena','',this.Linea);
+                        ValValor = this.Valor.Ejecutar(EntornoPadre);
+                    }else{
+                        //si es un objeto aun no lo tengo
+                    }
+                    let NuevoTemporalValValor = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+                    ValValor.Texto += '\n'+NuevoTemporalValValor+' = P + '+PosicionRelativaStack+';'
+                    ValValor.Texto += '\nStack['+NuevoTemporalValValor+'] = '+ValValor.Temporal+';'
+                }else{
+                    if(TipoDato.Tipo == 'valor'){
+                        let DimensionesArreglo = [];
+                        for(let i = 0;i<this.Dimensiones;i++){
+                            DimensionesArreglo.push(new Valor_CAAS('entero',0,this.Linea));
+                        }
+                        this.Valor = new NuevoArregloTipo_CAAS(TipoDato.TipoDato, DimensionesArreglo,this.Linea);                        
+                        ValValor = this.Valor.Ejecutar(EntornoPadre);
+                    }
+                }
             }
         }else if(PrimeraPasada){
             if(this.Dimensiones == 0){
@@ -929,7 +1100,7 @@ function SubDeclaracionVariable_CAAS(x,y,z,linea) {
         }else{
             if(this.Valor!=undefined){
                 let ValValor = this.Valor.Ejecutar(EntornoPadre);
-                if(ValValor.TipoDato == 'booleano'){
+                if(ValValor.TipoDato == 'booleano'&&ValValor.Tipo =='valor'){
                     for(let i = 0;i<ValValor.ListaVerdaderos.length;i++){
                         ValValor.Texto += '\n'+ValValor.ListaVerdaderos[i]+':';
                     }
@@ -948,9 +1119,59 @@ function SubDeclaracionVariable_CAAS(x,y,z,linea) {
                 ValValor.Texto += '\n'+NuevoTemporalValValor+' = P + '+PosicionRelativaStack+';'
                 ValValor.Texto += '\nStack['+NuevoTemporalValValor+'] = '+ValValor.Temporal+';'
                 return ValValor.Texto;
+            }else{
+                if(this.Dimensiones ==0){                    
+                    let ValValor;
+                    if(TipoDato.TipoDato == 'entero'&&TipoDato.Tipo == 'valor'){
+                        this.Valor = new Valor_CAAS('entero',0,this.Linea);
+                        ValValor = this.Valor.Ejecutar(EntornoPadre);
+                    }else if(TipoDato.TipoDato == 'decimal'&&TipoDato.Tipo == 'valor'){
+                        this.Valor = new Valor_CAAS('decimal',0,this.Linea);
+                        ValValor = this.Valor.Ejecutar(EntornoPadre);
+                    }else if(TipoDato.TipoDato == 'booleano'&&TipoDato.Tipo == 'valor'){
+                        this.Valor = new Valor_CAAS('booleano',0,this.Linea);
+                        ValValor = this.Valor.Ejecutar(EntornoPadre);
+                        for(let i = 0;i<ValValor.ListaVerdaderos.length;i++){
+                            ValValor.Texto += '\n'+ValValor.ListaVerdaderos[i]+':';
+                        }
+                        let NuevoTemporalValValor = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+                        ValValor.Temporal = NuevoTemporalValValor;
+                        ValValor.Texto+= '\n'+NuevoTemporalValValor+' = 1;';
+                        let NuevaEtiquetaSalidaValValor = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+                        ValValor.Texto+= '\ngoto '+NuevaEtiquetaSalidaValValor+';';
+                        for(let i = 0;i<ValValor.ListaFalsos.length;i++){
+                            ValValor.Texto += '\n'+ValValor.ListaFalsos[i]+':';
+                        }            
+                        ValValor.Texto+= '\n'+NuevoTemporalValValor+' = 0;';      
+                        ValValor.Texto+= '\n'+NuevaEtiquetaSalidaValValor+':';
+                    }else if(TipoDato.TipoDato == 'caracter'&&TipoDato.Tipo == 'valor'){
+                        this.Valor = new Valor_CAAS('caracter',0,this.Linea);
+                        ValValor = this.Valor.Ejecutar(EntornoPadre);
+                    }else if(TipoDato.TipoDato == 'cadena'&&TipoDato.Tipo == 'valor'){
+                        this.Valor = new Valor_CAAS('cadena','',this.Linea);
+                        ValValor = this.Valor.Ejecutar(EntornoPadre);
+                    }else{
+                        //si es un objeto aun no lo tengo
+                    }
+                    let NuevoTemporalValValor = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+                    ValValor.Texto += '\n'+NuevoTemporalValValor+' = P + '+PosicionRelativaStack+';'
+                    ValValor.Texto += '\nStack['+NuevoTemporalValValor+'] = '+ValValor.Temporal+';'
+                    return ValValor.Texto;
+                }else{
+                    if(TipoDato.Tipo == 'valor'){
+                        let DimensionesArreglo = [];
+                        for(let i = 0;i<this.Dimensiones;i++){
+                            DimensionesArreglo.push(new Valor_CAAS('entero',0,this.Linea));
+                        }
+                        this.Valor = new NuevoArregloTipo_CAAS(TipoDato.TipoDato, DimensionesArreglo,this.Linea);                        
+                        ValValor = this.Valor.Ejecutar(EntornoPadre);
+                    }
+                }
             }
         }
-        return '';
+        if(ValValor!=null){
+            return ValValor.Texto;
+        }
     };
     this.type = function(){
         return 'sub_declaracion_variable';
@@ -1627,7 +1848,7 @@ function ToChar_CAAS(x,linea) {
         ValRetorno.Tipo = 'valor';
         ValRetorno.Texto = ValValor.Texto;
         if(ValValor.TipoDato == 'decimal'&&ValValor.Tipo=='valor'){
-            let TemporalAuxiliar = 't'+EntornoPadre.Temporales.getNuevoTemporal();                        
+            let TemporalAuxiliar = 't'+EntornoPadre.Temporales.getNuevoTemporal();
             ValRetorno.Texto += '\n'+ValRetorno.Temporal+' = '+ValValor.Temporal+';';
             ValRetorno.Texto += '\n'+TemporalAuxiliar+' = '+ValRetorno.Temporal+' % 1;';
             ValRetorno.Texto += '\n'+ValRetorno.Temporal+' = '+ValRetorno.Temporal+' - '+TemporalAuxiliar+';';
@@ -1709,8 +1930,8 @@ function NuevoObjeto_CAAS(x,y,linea) {
 //######################
 function NuevoArregloTipo_CAAS(x,y,linea) {
     this.Linea = linea;
-    this.Nombre = x;
-    this.Dimension = y;
+    this.TipoDato = x;
+    this.Dimensiones = y;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
         this.Errores.Agregar('semantico',descripcion,'new arreglo de tipo basico',this.linea);
@@ -1719,7 +1940,52 @@ function NuevoArregloTipo_CAAS(x,y,linea) {
         ErroresPadre.AgregarErrores(this.Errores);
     };
     this.Ejecutar = function(EntornoPadre){
-        
+        let Texto = '';
+        let ValDimensiones = [];
+//Obteniendo el texto de cada uno de los indices del arreglo
+        for(let i = 0;i <this.Dimensiones.length;i++){
+            let ValorTemporal = this.Dimensiones[i].Ejecutar(EntornoPadre);
+            if(ValorTemporal.Tipo !='valor'||ValorTemporal.TipoDato !='entero'){
+                this.AgregarError('El indice de un arreglo debe ser de tipo entero');
+                return '';
+            }
+            Texto += ValorTemporal.Texto;
+            ValDimensiones.push(ValorTemporal);
+        }
+//Metiendo las dimensiones en los primeros valores del heap
+        let TemporalPosicion = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+        let TemporalPosicionHeap = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+        let TemporalTamaño = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+        let TemporalContador = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+        let EtiquetaRetorno = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+        Texto += '\n'+TemporalPosicion+' = H;';
+        Texto += '\n'+TemporalTamaño+' = '+ValDimensiones[0].Temporal+';';
+        for(let i = 1;i<this.Dimensiones.length;i++){
+            Texto += '\n'+TemporalTamaño+' = '+TemporalTamaño+ ' * '+ValDimensiones[i].Temporal+';';
+        }
+        Texto += '\n'+TemporalTamaño+' = '+TemporalTamaño+' + '+ValDimensiones.length+';//Guardo las dimensiones';
+        Texto += '\n'+TemporalTamaño+' = '+TemporalTamaño+' + 1;//Guardo cantidad dimensiones';
+        Texto += '\n'+TemporalContador+' = 0;';
+        Texto += '\n'+TemporalPosicionHeap+' = '+TemporalPosicion+' + '+TemporalContador+';';
+        Texto += '\nHeap['+TemporalPosicionHeap+'] = '+ValDimensiones.length+';//Cantidad dimensiones';
+        Texto += '\n'+TemporalContador+' = '+TemporalContador +' + 1;';
+        for(let i = 0;i <ValDimensiones.length;i++){
+            Texto += '\n'+TemporalPosicionHeap+' = '+TemporalPosicion+' + '+TemporalContador+';';
+            Texto += '\nHeap['+TemporalPosicionHeap+'] = '+ValDimensiones[i].Temporal+';//Dimension '+i;
+            Texto += '\n'+TemporalContador+' = '+TemporalContador +' + 1;';
+        }
+        Texto += '\n'+EtiquetaRetorno+':';
+        Texto += '\n'+TemporalPosicionHeap+' = '+TemporalPosicion+' + '+TemporalContador+';';
+        Texto += '\nHeap['+TemporalPosicionHeap+'] = 0;'
+        Texto += '\n'+TemporalContador+' = '+TemporalContador+ ' + 1;';
+        Texto += '\nif('+TemporalContador+' < '+TemporalTamaño+') goto '+EtiquetaRetorno+';';
+        Texto += '\nH = H + '+TemporalTamaño+';'
+        let ValRetorno = new Object();
+        ValRetorno.TipoDato = this.TipoDato;
+        ValRetorno.Tipo = 'arreglo';
+        ValRetorno.Texto = Texto;
+        ValRetorno.Temporal = TemporalPosicion;
+        return ValRetorno;
     };
     this.type = function(){
         return 'new_arreglo_tipo';
@@ -1731,7 +1997,7 @@ function NuevoArregloTipo_CAAS(x,y,linea) {
 function NuevoArregloObjeto_CAAS(x,y,linea) {
     this.Linea = linea;
     this.Nombre = x;
-    this.Dimension = y;
+    this.Dimensiones = y;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
         this.Errores.Agregar('semantico',descripcion,'new arreglo objeto',this.linea);
@@ -1740,10 +2006,150 @@ function NuevoArregloObjeto_CAAS(x,y,linea) {
         ErroresPadre.AgregarErrores(this.Errores);
     };
     this.Ejecutar = function(EntornoPadre){
-        
+        let Texto = '';
+        let ValDimensiones = [];
+//Obteniendo el texto de cada uno de los indices del arreglo
+        for(let i = 0;i <this.Dimensiones.length;i++){
+            let ValorTemporal = this.Dimensiones[i].Ejecutar(EntornoPadre);
+            if(ValorTemporal.Tipo !='valor'||ValorTemporal.TipoDato !='entero'){
+                this.AgregarError('El indice de un arreglo debe ser de tipo entero');
+                return '';
+            }
+            Texto += ValorTemporal.Texto;
+            ValDimensiones.push(ValorTemporal);
+        }
+//Metiendo las dimensiones en los primeros valores del heap
+        let TemporalPosicion = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+        let TemporalPosicionHeap = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+        let TemporalTamaño = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+        let TemporalContador = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+        let EtiquetaRetorno = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+        Texto += '\n'+TemporalPosicion+' = H;';
+        Texto += '\n'+TemporalTamaño+' = '+ValDimensiones[0].Temporal+';';
+        for(let i = 1;i<this.Dimensiones.length;i++){
+            Texto += '\n'+TemporalTamaño+' = '+TemporalTamaño+ ' * '+ValDimensiones[i].Temporal+';';
+        }
+        Texto += '\n'+TemporalTamaño+' = '+TemporalTamaño+' + '+ValDimensiones.length+';//Guardo las dimensiones';
+        Texto += '\n'+TemporalTamaño+' = '+TemporalTamaño+' + 1;//Guardo cantidad dimensiones';
+        Texto += '\n'+TemporalContador+' = 0;';
+        Texto += '\n'+TemporalPosicionHeap+' = '+TemporalPosicion+' + '+TemporalContador+';';
+        Texto += '\nHeap['+TemporalPosicionHeap+'] = '+ValDimensiones.length+';//Cantidad dimensiones';
+        Texto += '\n'+TemporalContador+' = '+TemporalContador +' + 1;';
+        for(let i = 0;i <ValDimensiones.length;i++){
+            Texto += '\n'+TemporalPosicionHeap+' = '+TemporalPosicion+' + '+TemporalContador+';';
+            Texto += '\nHeap['+TemporalPosicionHeap+'] = '+ValDimensiones[i].Temporal+';//Dimension '+i;
+            Texto += '\n'+TemporalContador+' = '+TemporalContador +' + 1;';
+        }
+        Texto += '\n'+EtiquetaRetorno+':';
+        Texto += '\n'+TemporalPosicionHeap+' = '+TemporalPosicion+' + '+TemporalContador+';';
+        Texto += '\nHeap['+TemporalPosicionHeap+'] = -1;';
+        Texto += '\n'+TemporalContador+' = '+TemporalContador+ ' + 1;';
+        Texto += '\nif('+TemporalContador+' < '+TemporalTamaño+') goto '+EtiquetaRetorno+';';
+        Texto += '\nH = H + '+TemporalTamaño+';'
+        let ValRetorno = new Object();
+        ValRetorno.TipoDato = this.TipoDato;
+        ValRetorno.Tipo = 'arreglo';
+        ValRetorno.Texto = Texto;
+        ValRetorno.Temporal = TemporalPosicion;
+        return ValRetorno;
     };
     this.type = function(){
         return 'new_arreglo_objeto';
+    };
+}
+//######################
+//## LISTA DE VALORES ## 
+//######################
+function ListaValores_CAAS(x,linea) {
+    this.Linea = linea;
+    this.Lista = x;
+    this.Errores = new Errores3D();
+    this.AgregarError = function(descripcion){
+        this.Errores.Agregar('semantico',descripcion,'Lista de valores',this.linea);
+    };
+    this.RecuperarErrores = function(ErroresPadre){
+        ErroresPadre.AgregarErrores(this.Errores);
+    };
+    this.Ejecutar = function(EntornoPadre){
+        alert('Entre aqui');
+//Comprobando que todos los valores sean del mismo tipo (valor, arreglo, lista valores)
+        if(this.Lista.length == 0){
+            let TemporalPosicion = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+            let TemporalTamaño = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+            let ValRetorno = new Object();
+            ValRetorno.TipoDato = 'vacio';
+            ValRetorno.Tipo = 'arreglo';
+            ValRetorno.Texto = '';
+            ValRetorno.Dimensiones=[];
+            ValRetorno.Dimensiones.push(0);
+            ValRetorno.Temporal = TemporalPosicion;
+    //Metiendo las dimensiones en los primeros valores del heap
+            ValRetorno.Texto += '\n'+TemporalPosicion+' = H;';
+            ValRetorno.Texto += '\n'+TemporalTamaño+' =  1;//Guardo cantidad dimensiones';
+            ValRetorno.Texto += '\nHeap['+TemporalPosicion+'] = 0;//Cantidad dimensiones';
+            ValRetorno.Texto += '\nH = H + '+TemporalTamaño+';';
+            return ValRetorno;
+        }
+        if(this.Lista.length == 1){
+            let Texto = '';
+            let ValDimensiones = [];
+    //Obteniendo el texto de cada uno de los indices del arreglo
+            let ValorTemporal = this.Lista[0].Ejecutar(EntornoPadre);
+            Texto += ValorTemporal.Texto;
+            ValDimensiones.push(ValorTemporal);
+    //Metiendo las dimensiones en los primeros valores del heap
+            let TemporalPosicion = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+            let TemporalPosicionHeap = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+            let TemporalTamaño = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+            let TemporalContador = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+            Texto += '\n'+TemporalPosicion+' = H;';
+            if(ValDimensiones[0].Tipo == 'valor'||ValDimensiones[0].Tipo =='objeto'){
+                Texto += '\n'+TemporalTamaño+' = 1;//Espacio cantidad dimensiones';//Tamaño de la dimension 1
+                Texto += '\n'+TemporalTamaño+' = '+TemporalTamaño+' + '+ValDimensiones.length+';//Espacio para el tamaño de cada dimension';
+                Texto += '\n'+TemporalTamaño+' = '+TemporalTamaño+' + 1;//Cantidad de casillas ocupadas por valores';
+                Texto += '\n'+TemporalContador+' = 0;';
+                Texto += '\n'+TemporalPosicionHeap+' = '+TemporalPosicion+' + '+TemporalContador+';';
+                Texto += '\nHeap['+TemporalPosicionHeap+'] = '+ValDimensiones.length+';//Cantidad dimensiones';
+                Texto += '\n'+TemporalContador+' = '+TemporalContador +' + 1;';
+                Texto += '\n'+TemporalPosicionHeap+' = '+TemporalPosicion+' + '+TemporalContador+';';
+                Texto += '\nHeap['+TemporalPosicionHeap+'] = 1;//Tamaño dimension 1';
+                Texto += '\n'+TemporalContador+' = '+TemporalContador +' + 1;';
+                Texto += '\n'+TemporalPosicionHeap+' = '+TemporalPosicion+' + '+TemporalContador+';';
+                Texto += '\nHeap['+TemporalPosicionHeap+'] = '+ValDimensiones[0].Temporal+';//Valor asignado a posicion del arreglo'
+                Texto += '\n'+TemporalContador+' = '+TemporalContador+ ' + 1;';
+                Texto += '\nH = H + '+TemporalTamaño+';'
+            }
+            let ValRetorno = new Object();
+            ValRetorno.TipoDato = this.TipoDato;
+            ValRetorno.Tipo = 'arreglo';
+            ValRetorno.Texto = Texto;
+            ValRetorno.Temporal = TemporalPosicion;
+            return ValRetorno;
+        }
+        ValLista = [];
+        for(let i = 0;i<this.Lista.length;i++){
+            ValLista.push(this.Lista[i].Ejecutar(EntornoPadre));
+        }
+        let Tipo = ValLista[0].Tipo;
+        let TipoDato = ValLista[0].TipoDato;
+        for(let i = 0;i<ValLista.length;i++){
+            if(ValLista[i].Tipo){
+
+            }
+        }
+        let Iguales = true;
+        if(!Iguales){
+            this.AgregarError('Un arreglo debe ser homogeneo');
+            return;
+        }
+        for(let i = 0;i<ValLista.length;i++){
+            if(ValLista[i].Tipo){
+
+            }
+        }
+    };
+    this.type = function(){
+        return 'new_linkedlist';
     };
 }
 //####################
@@ -1751,8 +2157,6 @@ function NuevoArregloObjeto_CAAS(x,y,linea) {
 //####################
 function NuevoLinkedList_CAAS(linea) {
     this.Linea = linea;
-    this.Ruta = x;
-    this.Contenido = y;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
         this.Errores.Agregar('semantico',descripcion,'new Linkedlist',this.linea);

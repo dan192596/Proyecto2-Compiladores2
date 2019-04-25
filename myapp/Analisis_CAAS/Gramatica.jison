@@ -66,8 +66,8 @@ comentariomultilinea \/\*.*?\*\/
 "]"     {return ']';}
 "("     {return '(';}
 ")"     {return ')';}
-"{"     {return 'llaveizq';}
-"}"     {return 'llaveder';}
+"{"     {return '{';}
+"}"     {return '}';}
 "="     {return '=';}
 "."     {return '.';}
 
@@ -173,6 +173,8 @@ comentariomultilinea \/\*.*?\*\/
 %left '.'
 %left '[' 
 %left ']'
+%left '{'
+%left '}'
 %left PRECVAR
 %left ';'
 %left 'EOF'
@@ -210,8 +212,8 @@ DECLARACIONCLASE
     ;
 
 BLOQUEINSTRUCCIONESCLASE
-    : llaveizq INSTRUCCIONESCLASE llaveder  {$$ = new BloqueInstruccionesClase_CAAS($2,yylineno); }
-    | llaveizq llaveder                     {$$ = new BloqueInstruccionesClase_CAAS([],yylineno); }
+    : '{' INSTRUCCIONESCLASE '}'  {$$ = new BloqueInstruccionesClase_CAAS($2,yylineno); }
+    | '{' '}'                     {$$ = new BloqueInstruccionesClase_CAAS([],yylineno); }
     ;
 
 INSTRUCCIONESCLASE
@@ -227,8 +229,8 @@ INSTRUCCIONCLASE
     ;
 
 BLOQUEINSTRUCCIONES
-    : llaveizq INSTRUCCIONES llaveder   {$$ = new BloqueInstrucciones_CAAS($2,yylineno);}
-    | llaveizq llaveder                 {$$ = new BloqueInstrucciones_CAAS([],yylineno);}
+    : '{' INSTRUCCIONES '}'   {$$ = new BloqueInstrucciones_CAAS($2,yylineno);}
+    | '{' '}'                 {$$ = new BloqueInstrucciones_CAAS([],yylineno);}
     ;
 
 INSTRUCCIONES
@@ -294,10 +296,10 @@ SENTENCIASWITCH
     ;
 
 BLOQUESWITCH
-    : llaveizq LISTACASOS LISTAETIQUETAS llaveder   {$$ = $1; temporalCAAS = new CasosInstruccion_CAAS($3,[],yylineno); $$.push(temporalCAAS); }
-    | llaveizq LISTACASOS llaveder                  {$$ = $1;}
-    | llaveizq LISTAETIQUETAS llaveder              {$$ = []; temporalCAAS = new CasosInstruccion_CAAS($2,[],yylineno); $$.push(temporalCAAS);}
-    | llaveizq llaveder                             {$$ = [];}
+    : '{' LISTACASOS LISTAETIQUETAS '}'   {$$ = $1; temporalCAAS = new CasosInstruccion_CAAS($3,[],yylineno); $$.push(temporalCAAS); }
+    | '{' LISTACASOS '}'                  {$$ = $1;}
+    | '{' LISTAETIQUETAS '}'              {$$ = []; temporalCAAS = new CasosInstruccion_CAAS($2,[],yylineno); $$.push(temporalCAAS);}
+    | '{' '}'                             {$$ = [];}
     ;
 
 LISTACASOS
@@ -315,7 +317,7 @@ LISTAETIQUETAS
 SENTENCIAIF
     : if EXPARENTESIS BLOQUEINSTRUCCIONES                           { $$ = new If_CAAS($2,$3,null, yylineno); }
     | if EXPARENTESIS BLOQUEINSTRUCCIONES else SENTENCIAIF          { $$ = new If_CAAS($2,$3,$5, yylineno); }
-    | if EXPARENTESIS BLOQUEINSTRUCCIONES else BLOQUEINSTRUCCIONES  { $$ = new If_CAAS($2,$3,new If_CAAS(new Valor_CAAS('booleano',true,yylineno),$5,null,yylineno), yylineno); }
+    | if EXPARENTESIS BLOQUEINSTRUCCIONES else BLOQUEINSTRUCCIONES  { $$ = new If_CAAS($2,$3,new If_CAAS(new Valor_CAAS('booleano',1,yylineno),$5,null,yylineno), yylineno); }
     ;
 
 INSTRUCCIONTRANSFERENCIA
@@ -448,16 +450,16 @@ CASTEOEXPLICITO
     | toChar EXPARENTESIS       {$$ = new ToChar_CAAS($2,yylineno); }
     ;
 
-CREACIONINSTANCIA //falta todo
-    : 'new' VARIABLE '(' LISTAVALORESOPCIONAL ')'   {$$ = new NuevoObjeto_CAAS($2,$4,yylineno);}
-    | RECURSIVIDADTIPOARREGLOTIPO                   {$$ = new NuevoArregloTipo_CAAS($1.Identificador, $1.Dimensiones,yylineno);}
+CREACIONINSTANCIA
+    : 'new' VARIABLE '(' LISTAVALORESOPCIONAL ')'   {$$ = new NuevoObjeto_CAAS($2,$4,yylineno);}//falta
+    | RECURSIVIDADTIPOARREGLOTIPO                   {$$ = new NuevoArregloTipo_CAAS($1.TipoDato, $1.Dimensiones,yylineno);}
     | 'new' VARIABLEARREGLO                         {$$ = new NuevoArregloObjeto_CAAS($2.Identificador, $2.Dimensiones,yylineno);}
-    | 'new' linkedlist menor mayor '(' ')'          {$$ = new NuevoLinkedList_CAAS(yylineno); }
+    | 'new' linkedlist menor mayor '(' ')'          {$$ = new NuevoLinkedList_CAAS(yylineno); }//falta
     ;
 
-RECURSIVIDADTIPOARREGLOTIPO //falta todo
-    : RECURSIVIDADTIPOARREGLOTIPO '[' E ']' {$$ = $1; $$.Dimensiones = []; $$.Dimensiones.push($3); }
-    | 'new' TIPO '[' E ']'                  {$$ = new Object(); $$.Identificador = []; $$.Identificador.push($2); $$.Dimensiones = []; $$.Dimensiones.push($4);}
+RECURSIVIDADTIPOARREGLOTIPO
+    : RECURSIVIDADTIPOARREGLOTIPO '[' E ']' {$$ = $1; $$.Dimensiones.push($3); }
+    | 'new' TIPO '[' E ']'                  {$$ = new Object(); $$.Tipo = 'valor';$$.TipoDato = $2.TipoDato; $$.Dimensiones = []; $$.Dimensiones.push($4);}
     ;
 
 GRAFICAR //falta todo
@@ -479,7 +481,7 @@ ARITMETICA
     | E '/' E   {$$ = new Division_CAAS($1,$3,'/',yylineno); }
     | E '%' E   {$$ = new Modulo_CAAS($1,$3,'%',yylineno); }
     | '-' E %prec UMENOS {$$ = new UnarioMenos_CAAS($2,yylineno);}
-    | '+' E %prec UMAS   {$$ = new UnarioMas_CAAS($2,yylineno);alert('unario');}
+    | '+' E %prec UMAS   {$$ = new UnarioMas_CAAS($2,yylineno);}
     | pow '(' E coma E ')' {$$ = new Potencia_CAAS($3,$5); } 
     ;
 
@@ -539,7 +541,8 @@ LLAMADAFUNCION //falta todo
     ;
 
 ARREGLO //falta
-    : '[' LISTAVALORESOPCIONAL ']' {$$ = $2; }
+    : '[' LISTAVALORESOPCIONAL ']' {$$ = new ListaValores_CAAS($2,yylineno); }
+    | '{' LISTAVALORESOPCIONAL '}' {$$ = new ListaValores_CAAS($2,yylineno); }
     | VARIABLEARREGLO  {$$ = new VariableArreglo_CAAS($1.Identificador, $1.Dimensiones,yylineno);}  
     ;
 

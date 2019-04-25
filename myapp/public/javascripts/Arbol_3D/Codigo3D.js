@@ -417,17 +417,23 @@ function Instrucciones(lista,linea) {
     this.Ejecutar = function(EntornoPadre){
         let EtiquetaEncontrada = true;
         let EtiquetaBuscada = '';
+        let ListaSaltos = {};
+        for(let i=0;i<this.Lista.length;i++){
+            if(this.Lista[i].type()=='salto'){
+                ListaSaltos[this.Lista[i].Etiqueta]=i;
+            }
+        }
         for(let i=0;i<this.Lista.length;i++){
             if((this.Lista[i].type()=='saltocondicionalverdadero'||this.Lista[i].type()=='saltocondicionalfalso')&&EtiquetaEncontrada){
                 if(this.Lista[i].Ejecutar(EntornoPadre)){//Retorna true si hara el  salto y false si no
                     EtiquetaBuscada = this.Lista[i].Salto.Etiqueta;
                     EtiquetaEncontrada = false;
-                    i = -1;//Paravolver a recorrerlo desde el principio
+                    i = ListaSaltos[EtiquetaBuscada]-1;//Paravolver a recorrerlo desde el principio
                 }
             }else if(this.Lista[i].type()=='saltoincondicional'&&EtiquetaEncontrada){
                 EtiquetaBuscada = this.Lista[i].Etiqueta;
                 EtiquetaEncontrada = false;
-                i = -1;
+                i = ListaSaltos[EtiquetaBuscada]-1;
             }else if(this.Lista[i].type()=='salto'&&!EtiquetaEncontrada){
                 if(this.Lista[i].Etiqueta==EtiquetaBuscada){
                     EtiquetaEncontrada = true;
@@ -501,7 +507,7 @@ function Memoria3D(){
 }
 //### T e m p o r a l ####
 function ListaTemporal3D(){
-    this.Lista = [];
+    this.Lista = {};
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
         this.Errores.Agregar('semantico',descripcion,'Manejo temporales',-1);
@@ -510,22 +516,13 @@ function ListaTemporal3D(){
         ErroresPadre.AgregarErrores(this.Errores);
     };
     this.SetValorTemporal=function(temporal,valor){
-        for(let i =0;i<this.Lista.length;i++){
-            if(this.Lista[i].toString()==temporal.toLowerCase()){
-                this.Lista[i].Valor = valor;
-                return;
-            }
-        }        
-        let temporalnuevo = new Temporal3D(temporal,valor);
-        this.Lista.push(temporalnuevo);
+        this.Lista[temporal] = valor;
     }
     this.GetValorTemporal=function(temporal){
-        for(let i =0;i<this.Lista.length;i++){
-            if(this.Lista[i].toString()==temporal.toLowerCase()){
-                return this.Lista[i].Valor;
-            }
+        if(this.Lista[temporal]==undefined){
+            return null;
         }
-        return null;
+        return this.Lista[temporal];
     }
 }
 function Temporal3D(nombre,Val){    
