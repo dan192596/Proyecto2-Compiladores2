@@ -188,6 +188,8 @@ function Imprimir(x,y,linea) {
             this.AgregarError("No se pudo recuperar el valor a imprimir");
             return null;
         }
+        //alert('El valor a imprimir es '+ValValor);
+        //alert('El valor del temporal t59 es '+EntornoPadre.Temporales.GetValorTemporal('t59'));
         let texto = consola_201404268.getValue('\n');        
         switch(this.CharTerminal){
             case 'c':texto+=String.fromCharCode(ValValor);break;

@@ -144,6 +144,7 @@ SALTOCONDICIONAL
 
 DECLARACIONMETODO
     : proc identificador begin INSTRUCCIONES end { $$ = new DeclaracionMetodo($2,$4,yylineno);}
+    | proc identificador begin end { $$ = new DeclaracionMetodo($2,[],yylineno);}
     ;
 LLAMADAMETODO
     : call identificador puntoycoma { $$ = new LLamadaMetodo($2,yylineno); }

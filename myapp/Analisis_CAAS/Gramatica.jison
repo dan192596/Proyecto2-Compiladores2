@@ -255,6 +255,7 @@ INSTRUCCION
     | ESCRIBIRARCHIVO ';'           {$$ = $1;}
     | GRAFICAR ';'                  {$$ = $1;}
     | LLAMADAFUNCION ';'            {$$ = $1;}
+    | UNARIAS ';'          {$$ = new ObtenerTexto_CAAS($1,yylineno);}
     ;
 
 SENTENCIAIMPRIMIR
@@ -512,7 +513,7 @@ LOGICA
     | '!' E     {$$ = new Not_CAAS($2,yylineno);}
     ;
 
-UNARIAS //Siempre debe caer en alguna variable pero puede ser distintos tipos de variable ej: a++, a.a++ a[0]++, a[0].a++ etc //falta todo
+UNARIAS //Creo que queda ambigua, y hay que cambiar E por VARIABLE y VARIABLEARREGLO
     : E '++'         {$$ = new IncDecPostfijo_CAAS('++',$1,yylineno); }    
     | E '--'         {$$ = new IncDecPostfijo_CAAS('--',$1,yylineno); }    
     | '++' E         {$$ = new IncDecPrefijo_CAAS('++',$2,yylineno); }    
@@ -536,11 +537,11 @@ VALOR
     | ARREGLO           {$$ = $1; }//falta
     ;
 
-LLAMADAFUNCION //falta todo
+LLAMADAFUNCION
     : VARIABLE '(' LISTAVALORESOPCIONAL ')' { $$ = new LlamadaFuncion_CAAS($1.Identificador, $3,yylineno); }
     ;
 
-ARREGLO //falta
+ARREGLO
     : '[' LISTAVALORESOPCIONAL ']' {$$ = new ListaValores_CAAS($2,yylineno); }
     | '{' LISTAVALORESOPCIONAL '}' {$$ = new ListaValores_CAAS($2,yylineno); }
     | VARIABLEARREGLO  {$$ = new VariableArreglo_CAAS($1.Identificador, $1.Dimensiones,yylineno);}  
@@ -564,7 +565,7 @@ LISTAVALORESOPCIONAL //falta
     | LISTAVALORES { $$ = $1;}
     ;
 
-LISTAVALORES //falta
+LISTAVALORES
     : LISTAVALORES coma E   {$$ = $1; $$.push($3); }
     | E                     {$$ = [];$$.push($1); }
     ;

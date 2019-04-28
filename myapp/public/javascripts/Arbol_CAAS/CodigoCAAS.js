@@ -27,6 +27,7 @@ function BloquePrincipal_CAAS(x,linea){
         for(let i = 0;i <this.Instrucciones.length;i++){
             Texto += this.Instrucciones[i].Ejecutar(EntornoPadre,Ambito);
         }
+        EntornoPadre.VerTabla();
         Texto += '\ncall main;'
         Texto += '\ncall main_main;'
         consola_201404268.setValue(Texto);
@@ -113,7 +114,7 @@ function DeclaracionClase_CAAS(x,y,z,i,extiende,linea){
         if(Visibilidad==''){
             Visibilidad = 'public';
         }
-        EntornoPadre.AgregarSimbolo(this.Nombre,'clase',null,Size,null,Array.from(Ambito),Visibilidad,static,final,abstract,this.Extiende,0,this.BloqueInstrucciones.getParametros());
+        EntornoPadre.AgregarSimbolo(this.Nombre,'clase',null,Size,null,Array.from(Ambito),Visibilidad,static,final,abstract,this.Extiende,0,this.BloqueInstrucciones.getParametros(),EntornoPadre.getLocalizacion());
     }
     this.type = function(){
         return 'declaracion_clase';
@@ -140,6 +141,7 @@ function BloqueInstruccionesClase_CAAS(x,linea){
         let Texto = '';
         let TextoDeclaracionesClase = '';        
         let ValValorTemporal;
+        EntornoPadre.setLocalizacion('Heap');
 //DECLARO TODAS LAS VARIABLES DE LA CLASE
         for(let i = 0; i <this.Instrucciones.length; i ++){
             if(this.Instrucciones[i].type()=='declaracion_variable'){
@@ -161,6 +163,7 @@ function BloqueInstruccionesClase_CAAS(x,linea){
         TextoDeclaracionesClase = '\nproc '+NombreAmbito+' begin '+TextoDeclaracionesClase+ '\nend';
         Texto += '\n//Declaracion de la clase '+NombreAmbito;
         Texto += TextoDeclaracionesClase;
+        EntornoPadre.setLocalizacion('Stack');
 //RECONOCER LOS METODOS
         for(let i = 0; i <this.Instrucciones.length; i ++){
             if(this.Instrucciones[i].type()=='declaracion_variable'){
@@ -481,6 +484,7 @@ function For_CAAS(x,y,z,i,linea){
         let ValIterador = this.Iterador.Ejecutar(EntornoPadre);
         if(ValCondicion.Tipo != 'valor' || ValCondicion.TipoDato !='booleano'){
             this.AgregarError('La condicion debe dar como resultado un valor booleano');
+            alert('La condicion debe dar como resultado un valor booleano');
             return '';
         }
         if(ValIterador.TipoDato == 'booleano'){
@@ -991,7 +995,7 @@ function DeclaracionVariable_CAAS(x,y,z,linea) {
         let ValRetorno = new Object();
         ValRetorno.PosicionRelativaStack = PosicionRelativaStack;
         ValRetorno.Texto = Texto;
-        consola_201404268.setValue(Texto);
+        //consola_201404268.setValue(Texto);
         return ValRetorno;
     };
     this.getSize = function(){
@@ -1020,9 +1024,9 @@ function SubDeclaracionVariable_CAAS(x,y,z,linea) {
         let ValValor = null;
         if(PrimeraPasada==undefined){
             if(this.Dimensiones == 0){
-                EntornoPadre.AgregarSimbolo(this.Identificador,'variable',TipoDato,1,PosicionRelativaStack,Array.from(Ambito),Visibilidad,static,final,abstract,false,0,null);
+                EntornoPadre.AgregarSimbolo(this.Identificador,'variable',TipoDato,1,PosicionRelativaStack,Array.from(Ambito),Visibilidad,static,final,abstract,false,0,null,EntornoPadre.getLocalizacion());
             }else{
-                EntornoPadre.AgregarSimbolo(this.Identificador,'arreglo',TipoDato,1,PosicionRelativaStack,Array.from(Ambito),Visibilidad,static,final,abstract,false,this.Dimensiones,null);
+                EntornoPadre.AgregarSimbolo(this.Identificador,'arreglo',TipoDato,1,PosicionRelativaStack,Array.from(Ambito),Visibilidad,static,final,abstract,false,this.Dimensiones,null,EntornoPadre.getLocalizacion());
             }
             if(this.Valor!=undefined){
                 ValValor = this.Valor.Ejecutar(EntornoPadre);
@@ -1041,6 +1045,24 @@ function SubDeclaracionVariable_CAAS(x,y,z,linea) {
                     ValValor.Texto+= '\n'+NuevoTemporalValValor+' = 0;';      
                     ValValor.Texto+= '\n'+NuevaEtiquetaSalidaValValor+':';
                 }
+                if(ValValor.TipoDato != TipoDato.TipoDato){
+                    this.AgregarError('Deben ser del mismo tipo de dato');
+                    alert('1Deben ser del mismo tipo de dato '+ValValor.TipoDato+' y '+TipoDato.TipoDato+', '+ValValor.Tipo+' y '+TipoDato.Tipo+' id '+this.Identificador);
+                    return;
+                }
+                if(ValValor.CantidadDimensiones!=undefined&&this.Dimensiones==0){
+                    this.AgregarError('El valor a asignar es un arreglo y lo desea almacenar en una variable simple');
+                    alert('1El valor a asignar es un arreglo y lo desea almacenar en una variable simple '+this.Identificador+' Cantidad dimensiones '+this.Dimensiones);
+                    return;
+                }else{
+                    if(ValValor.CantidadDimensiones!=undefined){
+                        if(ValValor.CantidadDimensiones!=this.Dimensiones){
+                            this.AgregarError('El valor que desea asignar a el arreglo no posee la misma cantidad de dimensiones que la variable');
+                            alert('El valor que desea asignar a el arreglo no posee la misma cantidad de dimensiones que la variable '+ValValor.CantidadDimensiones+' y '+this.Dimensiones);
+                            return;
+                        }
+                    }
+                }               
                 let NuevoTemporalValValor = 't'+EntornoPadre.Temporales.getNuevoTemporal();
                 ValValor.Texto += '\n'+NuevoTemporalValValor+' = P + '+PosicionRelativaStack+';'
                 ValValor.Texto += '\nStack['+NuevoTemporalValValor+'] = '+ValValor.Temporal+';'                
@@ -1093,9 +1115,9 @@ function SubDeclaracionVariable_CAAS(x,y,z,linea) {
             }
         }else if(PrimeraPasada){
             if(this.Dimensiones == 0){
-                EntornoPadre.AgregarSimbolo(this.Identificador,'variable',TipoDato,1,PosicionRelativaStack,Array.from(Ambito),Visibilidad,static,final,abstract,false,0,null);
+                EntornoPadre.AgregarSimbolo(this.Identificador,'variable',TipoDato,1,PosicionRelativaStack,Array.from(Ambito),Visibilidad,static,final,abstract,false,0,null,EntornoPadre.getLocalizacion());
             }else{//Debo inicializar el arreglo con 0 elementos en heap, en un rato lo hago :v
-                EntornoPadre.AgregarSimbolo(this.Identificador,'arreglo',TipoDato,1,PosicionRelativaStack,Array.from(Ambito),Visibilidad,static,final,abstract,false,this.Dimensiones,null);
+                EntornoPadre.AgregarSimbolo(this.Identificador,'arreglo',TipoDato,1,PosicionRelativaStack,Array.from(Ambito),Visibilidad,static,final,abstract,false,this.Dimensiones,null,EntornoPadre.getLocalizacion());
             }
         }else{
             if(this.Valor!=undefined){
@@ -1115,9 +1137,27 @@ function SubDeclaracionVariable_CAAS(x,y,z,linea) {
                     ValValor.Texto+= '\n'+NuevoTemporalValValor+' = 0;';      
                     ValValor.Texto+= '\n'+NuevaEtiquetaSalidaValValor+':';
                 }
+                if(ValValor.TipoDato != TipoDato.TipoDato){
+                    this.AgregarError('Deben ser del mismo tipo de dato');
+                    alert('2Deben ser del mismo tipo de dato '+ValValor.TipoDato+' y '+TipoDato.TipoDato+', '+ValValor.Tipo+' y '+TipoDato.Tipo);
+                    return;
+                }
+                if(ValValor.CantidadDimensiones!=undefined&&this.Dimensiones==0){
+                    this.AgregarError('El valor a asignar es un arreglo y lo desea almacenar en una variable simple');
+                    alert('1El valor a asignar es un arreglo y lo desea almacenar en una variable simple '+this.Identificador+' Cantidad dimensiones '+this.Dimensiones);
+                    return;
+                }else{
+                    if(ValValor.CantidadDimensiones!=undefined){
+                        if(ValValor.CantidadDimensiones!=this.Dimensiones){
+                            this.AgregarError('El valor que desea asignar a el arreglo no posee la misma cantidad de dimensiones que la variable');
+                            alert('El valor que desea asignar a el arreglo no posee la misma cantidad de dimensiones que la variable '+ValValor.CantidadDimensiones+' y '+this.Dimensiones);
+                            return;
+                        }
+                    }
+                }
                 let NuevoTemporalValValor = 't'+EntornoPadre.Temporales.getNuevoTemporal();
-                ValValor.Texto += '\n'+NuevoTemporalValValor+' = P + '+PosicionRelativaStack+';'
-                ValValor.Texto += '\nStack['+NuevoTemporalValValor+'] = '+ValValor.Temporal+';'
+                ValValor.Texto += '\n'+NuevoTemporalValValor+' = P + '+PosicionRelativaStack+';';
+                ValValor.Texto += '\nStack['+NuevoTemporalValValor+'] = '+ValValor.Temporal+';';
                 return ValValor.Texto;
             }else{
                 if(this.Dimensiones ==0){                    
@@ -1202,7 +1242,7 @@ function DeclaracionMetodo_CAAS(x,y,z,d,p,i,linea) {
         let abstract = false;
         let final = false;
         let Size = this.Instrucciones.getSize();
-        Size = Size + this.Parametros.length;
+        Size = Size + this.Parametros.length+2;//Posicion de clase en Heap que se guarda en stack y el Return
         for(let i = 0; i <this.Modificadores.length;i++){
             switch(this.Modificadores[i]){
                 case 'public':
@@ -1227,19 +1267,20 @@ function DeclaracionMetodo_CAAS(x,y,z,d,p,i,linea) {
         if(Visibilidad==''){
             Visibilidad = 'public';
         }
-        PosicionRelativaStack = 0;//Reiniciando el contador 
+        PosicionRelativaStack = 2;//Reiniciando el contador 
 //AGREGAR EL METODO A LA TABLA DE SIMBOLOS
         if(PrimeraPasada){
             if(this.Dimensiones>0){
                 //Inicializar en heap el tamaño del arreglo
             }else{
-                EntornoPadre.AgregarSimbolo(this.Identificador,'metodo',this.Tipo,Size,null,Array.from(Ambito),Visibilidad,static,final,abstract,false,this.Dimensiones,this.Parametros);
+                EntornoPadre.AgregarSimbolo(this.Identificador,'metodo',this.Tipo,Size,null,Array.from(Ambito),Visibilidad,static,final,abstract,false,this.Dimensiones,this.Parametros,EntornoPadre.getLocalizacion());
             }
             return;
         }
 // DECLARACION DE LOS PARAMETROS
         Ambito.push(this.Identificador);//Aqui aumento el ambito con este metodo debido aque ejecutare lo que esta dentro
-        EntornoPadre.setAmbito(Array.from(Ambito));        
+        EntornoPadre.setAmbito(Array.from(Ambito));
+        EntornoPadre.setLocalizacion('Stack');
         for(let i = 0;i <this.Parametros.length;i++){
             let finalParametro = false;
             for(let j = 0; j <this.Parametros[j].Modificadores.length;j++){
@@ -1250,10 +1291,10 @@ function DeclaracionMetodo_CAAS(x,y,z,d,p,i,linea) {
                 }
             }
             if(this.Parametros[i].CantidadDimensiones>0){
-                EntornoPadre.AgregarSimbolo(this.Parametros[i].Identificador,'arreglo',this.Parametros[i].Tipo,1,PosicionRelativaStack,Array.from(Ambito),'public',false,finalParametro,false,false,0,null);
+                EntornoPadre.AgregarSimbolo(this.Parametros[i].Identificador,'arreglo',this.Parametros[i].Tipo,1,PosicionRelativaStack,Array.from(Ambito),'public',false,finalParametro,false,false,0,null,EntornoPadre.getLocalizacion());
                 PosicionRelativaStack++;
             }else{
-                EntornoPadre.AgregarSimbolo(this.Parametros[i].Identificador,'variable',this.Parametros[i].Tipo,1,PosicionRelativaStack,Array.from(Ambito),'public',false,finalParametro,false,false,0,null);
+                EntornoPadre.AgregarSimbolo(this.Parametros[i].Identificador,'variable',this.Parametros[i].Tipo,1,PosicionRelativaStack,Array.from(Ambito),'public',false,finalParametro,false,false,0,null,EntornoPadre.getLocalizacion());
                 PosicionRelativaStack++;
             }
         }
@@ -1969,7 +2010,7 @@ function NuevoArregloTipo_CAAS(x,y,linea) {
         Texto += '\n'+TemporalPosicionHeap+' = '+TemporalPosicion+' + '+TemporalContador+';';
         Texto += '\nHeap['+TemporalPosicionHeap+'] = '+ValDimensiones.length+';//Cantidad dimensiones';
         Texto += '\n'+TemporalContador+' = '+TemporalContador +' + 1;';
-        for(let i = 0;i <ValDimensiones.length;i++){
+        for(let i = 0;i <ValDimensiones.length;i++){//Si hay que cambiar el orden de las dimensiones es aca
             Texto += '\n'+TemporalPosicionHeap+' = '+TemporalPosicion+' + '+TemporalContador+';';
             Texto += '\nHeap['+TemporalPosicionHeap+'] = '+ValDimensiones[i].Temporal+';//Dimension '+i;
             Texto += '\n'+TemporalContador+' = '+TemporalContador +' + 1;';
@@ -1985,6 +2026,7 @@ function NuevoArregloTipo_CAAS(x,y,linea) {
         ValRetorno.Tipo = 'arreglo';
         ValRetorno.Texto = Texto;
         ValRetorno.Temporal = TemporalPosicion;
+        ValRetorno.CantidadDimensiones = this.Dimensiones.length;
         return ValRetorno;
     };
     this.type = function(){
@@ -2051,6 +2093,7 @@ function NuevoArregloObjeto_CAAS(x,y,linea) {
         ValRetorno.Tipo = 'arreglo';
         ValRetorno.Texto = Texto;
         ValRetorno.Temporal = TemporalPosicion;
+        ValRetorno.CantidadDimensiones = this.Dimensiones.length;
         return ValRetorno;
     };
     this.type = function(){
@@ -2071,13 +2114,13 @@ function ListaValores_CAAS(x,linea) {
         ErroresPadre.AgregarErrores(this.Errores);
     };
     this.Ejecutar = function(EntornoPadre){
-        alert('Entre aqui');
 //Comprobando que todos los valores sean del mismo tipo (valor, arreglo, lista valores)
         if(this.Lista.length == 0){
             let TemporalPosicion = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+            let TemporalPosicionHeap = 't'+EntornoPadre.Temporales.getNuevoTemporal();
             let TemporalTamaño = 't'+EntornoPadre.Temporales.getNuevoTemporal();
             let ValRetorno = new Object();
-            ValRetorno.TipoDato = 'vacio';
+            ValRetorno.TipoDato = 'libre';
             ValRetorno.Tipo = 'arreglo';
             ValRetorno.Texto = '';
             ValRetorno.Dimensiones=[];
@@ -2085,9 +2128,15 @@ function ListaValores_CAAS(x,linea) {
             ValRetorno.Temporal = TemporalPosicion;
     //Metiendo las dimensiones en los primeros valores del heap
             ValRetorno.Texto += '\n'+TemporalPosicion+' = H;';
-            ValRetorno.Texto += '\n'+TemporalTamaño+' =  1;//Guardo cantidad dimensiones';
-            ValRetorno.Texto += '\nHeap['+TemporalPosicion+'] = 0;//Cantidad dimensiones';
+            ValRetorno.Texto += '\n'+TemporalPosicionHeap +' = H;';
+            ValRetorno.Texto += '\n'+TemporalTamaño+' =  2;//Guardo cantidad dimensiones y el tamaño de esas dimensiones';
+            ValRetorno.Texto += '\nHeap['+TemporalPosicionHeap+'] = 1;//Cantidad dimensiones';
+            ValRetorno.Texto += '\n'+TemporalPosicionHeap +' = '+TemporalPosicionHeap + ' + 1;';
+            ValRetorno.Texto += '\nHeap['+TemporalPosicionHeap+'] = 0;//Tamaño dimension';
             ValRetorno.Texto += '\nH = H + '+TemporalTamaño+';';
+            ValRetorno.Dimensiones = [];
+            ValRetorno.Dimensiones.push(this.Lista.length);
+            ValRetorno.CantidadDimensiones = ValRetorno.Dimensiones.length;
             return ValRetorno;
         }
         if(this.Lista.length == 1){
@@ -2095,6 +2144,21 @@ function ListaValores_CAAS(x,linea) {
             let ValDimensiones = [];
     //Obteniendo el texto de cada uno de los indices del arreglo
             let ValorTemporal = this.Lista[0].Ejecutar(EntornoPadre);
+            if(ValorTemporal.Tipo == 'valor' && ValorTemporal.TipoDato == 'booleano'){
+                for(let i = 0;i<ValorTemporal.ListaVerdaderos.length;i++){
+                    ValorTemporal.Texto += '\n'+ValorTemporal.ListaVerdaderos[i]+':';
+                }
+                let NuevoTemporal = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+                ValorTemporal.Temporal = NuevoTemporal;
+                ValorTemporal.Texto+= '\n'+NuevoTemporal+' = 1;';
+                let NuevaEtiquetaSalida = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+                ValorTemporal.Texto+= '\ngoto '+NuevaEtiquetaSalida+';';
+                for(let i = 0;i<ValorTemporal.ListaFalsos.length;i++){
+                    ValorTemporal.Texto += '\n'+ValorTemporal.ListaFalsos[i]+':';
+                }            
+                ValorTemporal.Texto+= '\n'+NuevoTemporal+' = 0;';      
+                ValorTemporal.Texto+= '\n'+NuevaEtiquetaSalida+':';
+            }
             Texto += ValorTemporal.Texto;
             ValDimensiones.push(ValorTemporal);
     //Metiendo las dimensiones en los primeros valores del heap
@@ -2103,13 +2167,14 @@ function ListaValores_CAAS(x,linea) {
             let TemporalTamaño = 't'+EntornoPadre.Temporales.getNuevoTemporal();
             let TemporalContador = 't'+EntornoPadre.Temporales.getNuevoTemporal();
             Texto += '\n'+TemporalPosicion+' = H;';
+            let ValRetorno = new Object();
             if(ValDimensiones[0].Tipo == 'valor'||ValDimensiones[0].Tipo =='objeto'){
                 Texto += '\n'+TemporalTamaño+' = 1;//Espacio cantidad dimensiones';//Tamaño de la dimension 1
                 Texto += '\n'+TemporalTamaño+' = '+TemporalTamaño+' + '+ValDimensiones.length+';//Espacio para el tamaño de cada dimension';
                 Texto += '\n'+TemporalTamaño+' = '+TemporalTamaño+' + 1;//Cantidad de casillas ocupadas por valores';
                 Texto += '\n'+TemporalContador+' = 0;';
                 Texto += '\n'+TemporalPosicionHeap+' = '+TemporalPosicion+' + '+TemporalContador+';';
-                Texto += '\nHeap['+TemporalPosicionHeap+'] = '+ValDimensiones.length+';//Cantidad dimensiones';
+                Texto += '\nHeap['+TemporalPosicionHeap+'] = 1;//Cantidad dimensiones';
                 Texto += '\n'+TemporalContador+' = '+TemporalContador +' + 1;';
                 Texto += '\n'+TemporalPosicionHeap+' = '+TemporalPosicion+' + '+TemporalContador+';';
                 Texto += '\nHeap['+TemporalPosicionHeap+'] = 1;//Tamaño dimension 1';
@@ -2118,38 +2183,224 @@ function ListaValores_CAAS(x,linea) {
                 Texto += '\nHeap['+TemporalPosicionHeap+'] = '+ValDimensiones[0].Temporal+';//Valor asignado a posicion del arreglo'
                 Texto += '\n'+TemporalContador+' = '+TemporalContador+ ' + 1;';
                 Texto += '\nH = H + '+TemporalTamaño+';'
-            }
-            let ValRetorno = new Object();
-            ValRetorno.TipoDato = this.TipoDato;
+                ValRetorno.Dimensiones = [];
+                ValRetorno.Dimensiones.push(this.Lista.length);
+            }else if(ValDimensiones[0].Tipo == 'arreglo'){
+                let ViejoTemporalPosicion = ValDimensiones[0].Temporal;
+                let ViejoTemporalPosicionHeap = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+                let ViejoTemporalTamaño = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+                let ViejoTemporalContador = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+                let ViejoTemporalTemporal = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+                let ViejoTemporalCantidadDimensiones = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+                let EtiquetaRetornoCantidadDimensiones = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+                let EtiquetaSaltoCantidadDimensiones = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+                let EtiquetaRetornoValores = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+                let EspacioTotal = this.Lista.length;
+                for(let i = 0;i <ValDimensiones[0].Dimensiones.length;i++){
+                    EspacioTotal = EspacioTotal * ValDimensiones[0].Dimensiones[i];
+                }
+                Texto += '\n'+TemporalContador+' = 0;';
+                Texto += '\n'+TemporalPosicionHeap+' = '+TemporalPosicion+' + '+TemporalContador+';';
+                Texto += '\n'+ViejoTemporalTemporal+' = '+ValDimensiones[0].Dimensiones.length+';'
+                Texto += '\n'+ViejoTemporalTemporal+' = '+ViejoTemporalTemporal+' + 1;';
+                Texto += '\nHeap['+TemporalPosicionHeap+'] = '+ViejoTemporalTemporal+';//Cantidad dimensiones nuevo arreglo';
+                Texto += '\n'+TemporalContador+' = '+TemporalContador +' + 1;';
+                Texto += '\n'+TemporalPosicionHeap+' = '+TemporalPosicion+' + '+TemporalContador+';';
+                Texto += '\nHeap['+TemporalPosicionHeap+'] = 1;//La nueva dimension de tamaño 1';
+                for(let i = 0;i <ValDimensiones[0].Dimensiones.length;i++){
+                    Texto += '\n'+TemporalContador+' = '+TemporalContador +' + 1;';
+                    Texto += '\n'+TemporalPosicionHeap+' = '+TemporalPosicion+' + '+TemporalContador+';';
+                    Texto += '\nHeap['+TemporalPosicionHeap+'] = '+ValDimensiones[0].Dimensiones[i]+';//Cantidad dimensiones nuevo arreglo';
+                }
+                Texto += '\n'+TemporalTamaño+' = 1;//Espacio cantidad dimensiones';//Tamaño de la dimension 1
+                Texto += '\n'+TemporalTamaño+' = '+TemporalTamaño+' + '+ValDimensiones[0].Dimensiones.length+';//Espacio para el tamaño de cada dimension';
+                Texto += '\n'+TemporalTamaño+' = '+TemporalTamaño+' + 1;//Agregando la nueva dimension';
+                Texto += '\n'+TemporalTamaño+' = '+TemporalTamaño+' + '+EspacioTotal+';//Espacio para los datos';
+                Texto += '\n'+ViejoTemporalContador +' = 0;';
+                Texto += '\n'+ViejoTemporalPosicionHeap+' = '+ViejoTemporalPosicion+' + '+ViejoTemporalContador+';';
+                Texto += '\n'+ViejoTemporalCantidadDimensiones + ' = Heap['+ViejoTemporalPosicionHeap+'];';
+                Texto += '\n'+ViejoTemporalContador +' = '+ViejoTemporalContador+' + 1;';
+                Texto += '\n'+ViejoTemporalPosicionHeap+' = '+ViejoTemporalPosicion+' + '+ViejoTemporalContador+';';
+                Texto += '\n'+ViejoTemporalTamaño + ' = Heap['+ViejoTemporalPosicionHeap+'];';
+                Texto += '\nif('+ViejoTemporalContador+' >= '+ViejoTemporalCantidadDimensiones+') goto '+EtiquetaSaltoCantidadDimensiones+';';
+                Texto += '\n'+EtiquetaRetornoCantidadDimensiones+':';
+                Texto += '\n'+ViejoTemporalContador +' = '+ViejoTemporalContador+' + 1;';
+                Texto += '\n'+ViejoTemporalPosicionHeap+' = '+ViejoTemporalPosicion+' + '+ViejoTemporalContador+';';
+                Texto += '\n'+ViejoTemporalTemporal + ' = Heap['+ViejoTemporalPosicionHeap+'];';
+                Texto += '\n'+ViejoTemporalTamaño + ' = '+ViejoTemporalTamaño+' * '+ViejoTemporalTemporal+';';
+                Texto += '\nif('+ViejoTemporalContador+' < '+ViejoTemporalCantidadDimensiones+') goto '+EtiquetaRetornoCantidadDimensiones+';';
+                Texto += '\n'+EtiquetaSaltoCantidadDimensiones+':';
+                Texto += '\n'+ViejoTemporalTamaño + ' = '+ViejoTemporalTamaño+' + '+ViejoTemporalCantidadDimensiones+';';
+                //Texto += '\n'+ViejoTemporalTamaño + ' = '+ViejoTemporalTamaño+' + 1;//Ya tengo el tamañao total en heap del antiguo arreglo';
+                Texto += '\n'+EtiquetaRetornoValores+':';
+                Texto += '\n'+ViejoTemporalContador +' = '+ViejoTemporalContador+' + 1;';
+                Texto += '\n'+TemporalContador+' = '+TemporalContador +' + 1;';
+                Texto += '\n'+TemporalPosicionHeap+' = '+TemporalPosicion+' + '+TemporalContador+';';
+                Texto += '\n'+ViejoTemporalPosicionHeap+' = '+ViejoTemporalPosicion+' + '+ViejoTemporalContador+';';
+                Texto += '\n'+ViejoTemporalTemporal + ' = Heap['+ViejoTemporalPosicionHeap+'];';
+                Texto += '\nHeap['+TemporalPosicionHeap+'] = '+ViejoTemporalTemporal+';//Valor ';
+                Texto += '\nif('+ViejoTemporalContador+' < '+ViejoTemporalTamaño+') goto '+EtiquetaRetornoValores+';';
+                Texto += '\nH = H + '+TemporalTamaño+';'
+                ValRetorno.Dimensiones = ValDimensiones[0].Dimensiones;
+                ValRetorno.Dimensiones.unshift(this.Lista.length);
+            }            
+            ValRetorno.TipoDato = ValDimensiones[0].TipoDato;
             ValRetorno.Tipo = 'arreglo';
             ValRetorno.Texto = Texto;
             ValRetorno.Temporal = TemporalPosicion;
+            ValRetorno.CantidadDimensiones = ValRetorno.Dimensiones.length;
             return ValRetorno;
         }
-        ValLista = [];
+        let Texto = '';
+        let ValDimensiones = [];
         for(let i = 0;i<this.Lista.length;i++){
-            ValLista.push(this.Lista[i].Ejecutar(EntornoPadre));
+            let ValorTemporal = this.Lista[i].Ejecutar(EntornoPadre);
+            if(ValorTemporal.Tipo == 'valor' && ValorTemporal.TipoDato == 'booleano'){
+                for(let i = 0;i<ValorTemporal.ListaVerdaderos.length;i++){
+                    ValorTemporal.Texto += '\n'+ValorTemporal.ListaVerdaderos[i]+':';
+                }
+                let NuevoTemporal = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+                ValorTemporal.Temporal = NuevoTemporal;
+                ValorTemporal.Texto+= '\n'+NuevoTemporal+' = 1;';
+                let NuevaEtiquetaSalida = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+                ValorTemporal.Texto+= '\ngoto '+NuevaEtiquetaSalida+';';
+                for(let i = 0;i<ValorTemporal.ListaFalsos.length;i++){
+                    ValorTemporal.Texto += '\n'+ValorTemporal.ListaFalsos[i]+':';
+                }            
+                ValorTemporal.Texto+= '\n'+NuevoTemporal+' = 0;';      
+                ValorTemporal.Texto+= '\n'+NuevaEtiquetaSalida+':';
+            }
+            Texto += ValorTemporal.Texto;
+            ValDimensiones.push(ValorTemporal);
         }
-        let Tipo = ValLista[0].Tipo;
-        let TipoDato = ValLista[0].TipoDato;
-        for(let i = 0;i<ValLista.length;i++){
-            if(ValLista[i].Tipo){
-
+        let Tipo = ValDimensiones[0].Tipo;
+        let TipoDato = ValDimensiones[0].TipoDato;
+        let Dimensiones=undefined;
+        if(Tipo =='arreglo'){
+            Dimensiones = ValDimensiones[0].Dimensiones;
+        }
+        let TiposIguales = true;
+        for(let i = 0;i<ValDimensiones.length&&TiposIguales;i++){
+            if(ValDimensiones[i].Tipo!= Tipo || ValDimensiones[i].TipoDato != TipoDato){
+                TiposIguales = false;
+                break;
+            }
+            if(ValDimensiones[i].Tipo == 'arreglo'){
+                if(ValDimensiones[i].Dimensiones.length!=Dimensiones.length){
+                    TiposIguales = false;
+                    this.AgregarError('Las dimensiones deben ser igual;')
+                    break;
+                }
+                for(let j = 0;j<Dimensiones.length&&TiposIguales;j++){
+                    if(Dimensiones[j]!=ValDimensiones[i].Dimensiones[j]){
+                        TiposIguales = false;
+                        this.AgregarError('Las dimensiones deben ser igual;')
+                        break;
+                    }
+                }
             }
         }
-        let Iguales = true;
-        if(!Iguales){
-            this.AgregarError('Un arreglo debe ser homogeneo');
+        if(!TiposIguales){
+            this.AgregarError('Un arreglo debe contener datos del mismo tipo');
             return;
         }
-        for(let i = 0;i<ValLista.length;i++){
-            if(ValLista[i].Tipo){
-
+        let TemporalPosicion = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+        let TemporalPosicionHeap = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+        let TemporalTamaño = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+        let TemporalContador = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+        Texto += '\n'+TemporalPosicion+' = H;';
+        let ValRetorno = new Object();
+        if(Tipo == 'valor'||Tipo =='objeto'){
+            Texto += '\n'+TemporalTamaño+' = 1;//Espacio cantidad dimensiones';//Tamaño de la dimension 1
+            Texto += '\n'+TemporalTamaño+' = '+TemporalTamaño+' + 1;//Espacio para el tamaño de cada dimension';
+            Texto += '\n'+TemporalTamaño+' = '+TemporalTamaño+' + '+ValDimensiones.length+';//Cantidad de casillas ocupadas por valores';
+            Texto += '\n'+TemporalContador+' = 0;';
+            Texto += '\n'+TemporalPosicionHeap+' = '+TemporalPosicion+' + '+TemporalContador+';';
+            Texto += '\nHeap['+TemporalPosicionHeap+'] = 1;//Cantidad dimensiones';
+            Texto += '\n'+TemporalContador+' = '+TemporalContador +' + 1;';
+            Texto += '\n'+TemporalPosicionHeap+' = '+TemporalPosicion+' + '+TemporalContador+';';
+            Texto += '\nHeap['+TemporalPosicionHeap+'] = '+ValDimensiones.length+';//Tamaño dimension 1';
+            Texto += '\n'+TemporalContador+' = '+TemporalContador +' + 1;';
+            for(let i = 0;i <ValDimensiones.length;i++){
+                Texto += '\n'+TemporalPosicionHeap+' = '+TemporalPosicion+' + '+TemporalContador+';';
+                Texto += '\nHeap['+TemporalPosicionHeap+'] = '+ValDimensiones[i].Temporal+';//Valor '+i;
+                Texto += '\n'+TemporalContador+' = '+TemporalContador +' + 1;';
             }
+            Texto += '\nH = H + '+TemporalTamaño+';'
+            ValRetorno.Dimensiones = [];
+            ValRetorno.Dimensiones.push(this.Lista.length);
+        }else if(Tipo == 'arreglo'){
+            let ViejoTemporalTemporal = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+            let EspacioTotal = this.Lista.length;
+            for(let i = 0;i <ValDimensiones[0].Dimensiones.length;i++){
+                EspacioTotal = EspacioTotal * ValDimensiones[0].Dimensiones[i];
+            }
+            Texto += '\n//Arreglo en arreglo Cantidad dimensiones '+(ValDimensiones[0].Dimensiones.length+1);
+            Texto += '\n'+TemporalContador+' = 0;';
+            Texto += '\n'+TemporalPosicionHeap+' = '+TemporalPosicion+' + '+TemporalContador+';';
+            Texto += '\n'+ViejoTemporalTemporal+' = '+ValDimensiones[0].Dimensiones.length+';'
+            Texto += '\n'+ViejoTemporalTemporal+' = '+ViejoTemporalTemporal+' + 1;';
+            Texto += '\nHeap['+TemporalPosicionHeap+'] = '+ViejoTemporalTemporal+';//Cantidad dimensiones nuevo arreglo';
+            Texto += '\n'+TemporalContador+' = '+TemporalContador +' + 1;';
+            Texto += '\n'+TemporalPosicionHeap+' = '+TemporalPosicion+' + '+TemporalContador+';';
+            Texto += '\nHeap['+TemporalPosicionHeap+'] = '+this.Lista.length+';//La nueva dimension';
+            for(let i = 0;i <ValDimensiones[0].Dimensiones.length;i++){
+                Texto += '\n'+TemporalContador+' = '+TemporalContador +' + 1;';
+                Texto += '\n'+TemporalPosicionHeap+' = '+TemporalPosicion+' + '+TemporalContador+';';
+                Texto += '\nHeap['+TemporalPosicionHeap+'] = '+ValDimensiones[0].Dimensiones[i]+';//Cantidad dimensiones nuevo arreglo';
+            }
+            Texto += '\n'+TemporalTamaño+' = 1;//Espacio cantidad dimensiones';//Tamaño de la dimension 1
+            Texto += '\n'+TemporalTamaño+' = '+TemporalTamaño+' + '+ValDimensiones[0].Dimensiones.length+';//Espacio para el tamaño de cada dimension';
+            Texto += '\n'+TemporalTamaño+' = '+TemporalTamaño+' + 1;//Agregando la nueva dimension';
+            Texto += '\n'+TemporalTamaño+' = '+TemporalTamaño+' + '+EspacioTotal+';//Espacio para los datos';
+            for(let i=0;i<ValDimensiones.length;i++){
+            //for(let i=ValDimensiones.length-1;i>=0;i--){
+                let ViejoTemporalPosicion = ValDimensiones[i].Temporal;
+                let ViejoTemporalPosicionHeap = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+                let ViejoTemporalTamaño = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+                let ViejoTemporalContador = 't'+EntornoPadre.Temporales.getNuevoTemporal();            
+                let ViejoTemporalCantidadDimensiones = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+                let EtiquetaRetornoCantidadDimensiones = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+                let EtiquetaSaltoCantidadDimensiones = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+                let EtiquetaRetornoValores = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+                Texto += '\n'+ViejoTemporalContador +' = 0;';
+                Texto += '\n'+ViejoTemporalPosicionHeap+' = '+ViejoTemporalPosicion+' + '+ViejoTemporalContador+';';
+                Texto += '\n'+ViejoTemporalCantidadDimensiones + ' = Heap['+ViejoTemporalPosicionHeap+'];';
+                Texto += '\n'+ViejoTemporalContador +' = '+ViejoTemporalContador+' + 1;';
+                Texto += '\n'+ViejoTemporalPosicionHeap+' = '+ViejoTemporalPosicion+' + '+ViejoTemporalContador+';';
+                Texto += '\n'+ViejoTemporalTamaño + ' = Heap['+ViejoTemporalPosicionHeap+'];';
+                Texto += '\nif('+ViejoTemporalContador+' >= '+ViejoTemporalCantidadDimensiones+') goto '+EtiquetaSaltoCantidadDimensiones+';';
+                Texto += '\n'+EtiquetaRetornoCantidadDimensiones+':';
+                Texto += '\n'+ViejoTemporalContador +' = '+ViejoTemporalContador+' + 1;';
+                Texto += '\n'+ViejoTemporalPosicionHeap+' = '+ViejoTemporalPosicion+' + '+ViejoTemporalContador+';';
+                Texto += '\n'+ViejoTemporalTemporal + ' = Heap['+ViejoTemporalPosicionHeap+'];';
+                Texto += '\n'+ViejoTemporalTamaño + ' = '+ViejoTemporalTamaño+' * '+ViejoTemporalTemporal+';';
+                Texto += '\nif('+ViejoTemporalContador+' < '+ViejoTemporalCantidadDimensiones+') goto '+EtiquetaRetornoCantidadDimensiones+';';
+                Texto += '\n'+EtiquetaSaltoCantidadDimensiones+':';
+                Texto += '\n'+ViejoTemporalTamaño + ' = '+ViejoTemporalTamaño+' + '+ViejoTemporalCantidadDimensiones+';';
+                //Texto += '\n'+ViejoTemporalTamaño + ' = '+ViejoTemporalTamaño+' + 1;//Ya tengo el tamañao total en heap del antiguo arreglo';
+                Texto += '\n'+EtiquetaRetornoValores+':';
+                Texto += '\n'+ViejoTemporalContador +' = '+ViejoTemporalContador+' + 1;';
+                Texto += '\n'+TemporalContador+' = '+TemporalContador +' + 1;';
+                Texto += '\n'+TemporalPosicionHeap+' = '+TemporalPosicion+' + '+TemporalContador+';';
+                Texto += '\n'+ViejoTemporalPosicionHeap+' = '+ViejoTemporalPosicion+' + '+ViejoTemporalContador+';';
+                Texto += '\n'+ViejoTemporalTemporal + ' = Heap['+ViejoTemporalPosicionHeap+'];';
+                Texto += '\nHeap['+TemporalPosicionHeap+'] = '+ViejoTemporalTemporal+';//Valor ';
+                Texto += '\nif('+ViejoTemporalContador+' < '+ViejoTemporalTamaño+') goto '+EtiquetaRetornoValores+';';
+            }        
+            Texto += '\nH = H + '+TemporalTamaño+';'    
+            ValRetorno.Dimensiones = ValDimensiones[0].Dimensiones;
+            ValRetorno.Dimensiones.unshift(this.Lista.length);
         }
+        ValRetorno.TipoDato = TipoDato;
+        ValRetorno.Tipo = 'arreglo';
+        ValRetorno.Texto = Texto;
+        ValRetorno.Temporal = TemporalPosicion;
+        ValRetorno.CantidadDimensiones = ValRetorno.Dimensiones.length;
+        return ValRetorno;
     };
     this.type = function(){
-        return 'new_linkedlist';
+        return 'lista_valores';
     };
 }
 //####################
@@ -3206,8 +3457,29 @@ function Not_CAAS(x,linea) {
         return 'negacion';
     };
 }
+//###################
+//## OBTENER TEXTO ## 
+//###################
+function ObtenerTexto_CAAS(x,linea) {
+    this.Linea = linea;
+    this.Valor = x;
+    this.Errores = new Errores3D();
+    this.AgregarError = function(descripcion){
+        this.Errores.Agregar('semantico',descripcion,'Obtener texto',this.linea);
+    };
+    this.RecuperarErrores = function(ErroresPadre){
+        ErroresPadre.AgregarErrores(this.Errores);
+    };
+    this.Ejecutar = function(EntornoPadre){
+        alert('Entre 1');
+        return this.Valor.Ejecutar(EntornoPadre).Texto;
+    };
+    this.type = function(){
+        return 'ObtenerTexto';
+    };
+}
 //##########################################
-//## INCREMENTO O DECREMENTO MODO PREFIJO ## 
+//## INCREMENTO O DECREMENTO MODO POSTFIJO ## 
 //##########################################
 function IncDecPostfijo_CAAS(x,y,linea) {
     this.Linea = linea;
@@ -3221,7 +3493,28 @@ function IncDecPostfijo_CAAS(x,y,linea) {
         ErroresPadre.AgregarErrores(this.Errores);
     };
     this.Ejecutar = function(EntornoPadre){
-        
+        if(this.Nombre.type()!='variable'&&this.Nombre.type()!='variablearreglo'){
+            this.AgregarError('Debe ser una variable para poder hacer incremento')
+        }
+        let Asignacion =null;
+        if(this.Tipo=='++'){
+            if(this.Nombre.type()=='variable'){
+                Asignacion = new AsignacionVariable_CAAS(this.Nombre.Nombre ,new Suma_CAAS(this.Nombre,new Valor_CAAS('entero',1,this.Linea),'+',this.Linea),this.Linea);
+            }else{
+                Asignacion = new AsignacionVariableArreglo_CAAS(this.Nombre.Nombre ,this.Nombre.Dimensiones,new Suma_CAAS(this.Nombre,new Valor_CAAS('entero',1,this.Linea),'+',this.Linea),this.Linea);
+            }
+        }else{
+            if(this.Nombre.type()=='variable'){
+                Asignacion = new AsignacionVariable_CAAS(this.Nombre.Nombre ,new Resta_CAAS(this.Nombre,new Valor_CAAS('entero',1,this.Linea),'-',this.Linea),this.Linea);
+            }else{
+                Asignacion = new AsignacionVariableArreglo_CAAS(this.Nombre.Nombre ,this.Nombre.Dimensiones,new Resta_CAAS(this.Nombre,new Valor_CAAS('entero',1,this.Linea),'-',this.Linea),this.Linea);
+            }
+        }
+        //Primero obtengo el valor y luego hago la asignacion
+        let ValValor = this.Nombre.Ejecutar(EntornoPadre);
+        let Texto = Asignacion.Ejecutar(EntornoPadre);
+        ValValor.Texto =  ValValor.Texto +Texto;
+        return ValValor; 
     };
     this.type = function(){
         return 'incdecpostfijo';
@@ -3242,7 +3535,28 @@ function IncDecPrefijo_CAAS(x,y,linea) {
         ErroresPadre.AgregarErrores(this.Errores);
     };
     this.Ejecutar = function(EntornoPadre){
-        
+        if(this.Nombre.type()!='variable'&&this.Nombre.type()!='variablearreglo'){
+            this.AgregarError('Debe ser una variable para poder hacer incremento')
+        }
+        let Asignacion =null;
+        if(this.Tipo=='++'){
+            if(this.Nombre.type()=='variable'){
+                Asignacion = new AsignacionVariable_CAAS(this.Nombre.Nombre ,new Suma_CAAS(this.Nombre,new Valor_CAAS('entero',1,this.Linea),'+',this.Linea),this.Linea);
+            }else{
+                Asignacion = new AsignacionVariableArreglo_CAAS(this.Nombre.Nombre ,this.Nombre.Dimensiones,new Suma_CAAS(this.Nombre,new Valor_CAAS('entero',1,this.Linea),'+',this.Linea),this.Linea);
+            }
+        }else{
+            if(this.Nombre.type()=='variable'){
+                Asignacion = new AsignacionVariable_CAAS(this.Nombre.Nombre ,new Resta_CAAS(this.Nombre,new Valor_CAAS('entero',1,this.Linea),'-',this.Linea),this.Linea);
+            }else{
+                Asignacion = new AsignacionVariableArreglo_CAAS(this.Nombre.Nombre ,this.Nombre.Dimensiones,new Resta_CAAS(this.Nombre,new Valor_CAAS('entero',1,this.Linea),'-',this.Linea),this.Linea);
+            }
+        }
+        //Primero incremento o decremento y luego retorno el valor
+        let Texto = Asignacion.Ejecutar(EntornoPadre);
+        let ValValor = this.Nombre.Ejecutar(EntornoPadre);
+        ValValor.Texto = Texto + ValValor.Texto;
+        return ValValor;
     };
     this.type = function(){
         return 'incdecprefijo';
@@ -3440,9 +3754,9 @@ function Variable_CAAS(x,linea) {
         let Ambito = EntornoPadre.getAmbito();
         let Simbolo =null;
         if(this.Nombre.length==1){
-            Simbolo = EntornoPadre.getSimboloVariable(Ambito,this.Nombre[0]);
+            Simbolo = EntornoPadre.getSimboloVariable(Ambito,this.Nombre[0]);            
         }else{
-            
+            //Me falta recuperar cuando son arreglos
         }
         if(Simbolo==null){
             this.AgregarError('No se encontro la variable '+this.Nombre);
@@ -3471,6 +3785,8 @@ function Variable_CAAS(x,linea) {
         }else if(ValRetorno.TipoDato == 'cadena'&&ValRetorno.Tipo=='valor'){
             ValRetorno.Temporal = TemporalValorStack;
         }else if(ValRetorno.Tipo=='valor'){
+            ValRetorno.Temporal = TemporalValorStack;
+        }else{
             ValRetorno.Temporal = TemporalValorStack;
         }
         return ValRetorno;
@@ -3568,11 +3884,125 @@ function VariableArreglo_CAAS(x,y,linea) {
         }
     };
     this.Ejecutar = function(EntornoPadre){
+//Obteniendo el texto de cada uno de los indices del arreglo
         let ValDimensiones = [];
-        for(let i=0;i<this.Dimensiones.length;i++){
-            ValDimensiones.push(this.Dimensiones[i].Ejecutar(EntornoPadre));
+        let Texto = '';
+        for(let i = 0;i <this.Dimensiones.length;i++){
+            let ValorTemporal = this.Dimensiones[i].Ejecutar(EntornoPadre);
+            if(ValorTemporal.Tipo !='valor'||ValorTemporal.TipoDato !='entero'){
+                this.AgregarError('El indice de un arreglo debe ser de tipo entero');
+                return '';
+            }
+    //Aqui debo revisar que ningun indice sea menor que cero, si no error
+            Texto += ValorTemporal.Texto;
+            ValDimensiones.push(ValorTemporal);
         }
-        //Revisar que las dimensiones sean numericas y que el nombre de la variable exista
+//Obteniendo la variable donde esta el arreglo
+        let Ambito = EntornoPadre.getAmbito();
+        let Simbolo =null;
+        if(this.Nombre.length==1){
+            Simbolo = EntornoPadre.getSimboloVariableArreglo(Ambito,this.Nombre[0],this.Dimensiones.length);
+        }else{
+            
+        }
+        if(Simbolo==null){
+            this.AgregarError('No se encontro la variable '+this.Nombre);
+            return;
+        }
+        let TemporalPosicion = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+        let TemporalPosicionHeap = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+        let TemporalPosicionValor = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+        let TemporalTamañoDimension = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+        let TemporalMultiplicacion = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+        let TemporalContador = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+        let TemporalPosicionStack = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+        let TemporalTemporal = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+        let EtiquetaSalto = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+        let EtiquetaSalida = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+        Texto = '';
+        Texto += '\n'+TemporalPosicionStack+' = P + '+Simbolo.getPosicion()+';';
+        Texto += '\n'+TemporalPosicion + ' = Stack['+TemporalPosicionStack+'];';
+        Texto += '\n'+TemporalContador + ' = '+Simbolo.getDimensiones()+'+1;';
+        for(let i = 0;i <Simbolo.getDimensiones();i++){
+            Texto += '\n'+TemporalContador+' = '+TemporalContador +' - 1;';
+            Texto += '\n'+TemporalPosicionHeap+' = '+TemporalPosicion+' + '+TemporalContador+';';
+            Texto += '\n'+TemporalTemporal +' = Heap['+TemporalPosicionHeap+'];//Posicion de la primera dimension';
+            Texto += '\nif('+TemporalTemporal+' <= '+ValDimensiones[i].Temporal+') goto '+EtiquetaSalto+';';
+    //Aqui tengo que revisar que los tamaño que vienen de ValDimension sean menores que los indices del arreglo
+        }
+        Texto += '\n'+TemporalPosicionValor+' = 0;';
+        Texto += '\n'+TemporalTamañoDimension+' = 0;';
+        Texto += '\n'+TemporalContador + ' = 0;';
+        Texto += '\n'+TemporalContador+' = '+TemporalContador +' + '+ValDimensiones.length+';';
+        Texto += '\n'+TemporalPosicionHeap+' = '+TemporalPosicion+' + '+TemporalContador+';';
+        Texto += '\n'+TemporalTemporal +' = Heap['+TemporalPosicionHeap+'];//Posicion de la dimension 0';
+        Texto += '\n'+TemporalPosicionValor+' = '+ValDimensiones[0].Temporal+';';
+        Texto += '\n'+TemporalTamañoDimension+' = '+TemporalTemporal+';';
+        for(let i = 1;i <ValDimensiones.length;i++){
+            Texto += '\n'+TemporalContador+' = '+TemporalContador +' - 1;';
+            Texto += '\n'+TemporalPosicionHeap+' = '+TemporalPosicion+' + '+TemporalContador+';';
+            Texto += '\n'+TemporalTemporal +' = Heap['+TemporalPosicionHeap+'];//Posicion de la dimension '+i;
+            Texto += '\n'+TemporalMultiplicacion+' = '+ValDimensiones[i].Temporal+' * '+TemporalTamañoDimension+';';
+            Texto += '\n'+TemporalPosicionValor+' = '+TemporalPosicionValor+' + '+TemporalMultiplicacion+';';
+            Texto += '\n'+TemporalTamañoDimension+' = '+TemporalTamañoDimension+' * '+ TemporalTemporal+';';
+        }
+        //arr[a][b]=a+b*tam1
+        //arr[a][b][c]=a+b*tam1+c*tam1*tam2
+        //arr[a][b][c][d]=a+b*tam1+c*tam1*tam2+d*tam1*tam2*tam3
+        Texto += '\n'+TemporalContador + ' = 0;';
+        Texto += '\n'+TemporalContador + ' = ' + TemporalContador +' + 1;';
+        Texto += '\n'+TemporalContador + ' = ' + TemporalContador +' + '+ValDimensiones.length+';';
+        Texto += '\n'+TemporalContador + ' = ' + TemporalContador +' + '+TemporalPosicionValor+';//PosicionValor';
+        Texto += '\n'+TemporalPosicionHeap+' = '+TemporalPosicion+' + '+TemporalContador+';';
+        Texto += '\n'+TemporalPosicion + ' = Heap['+TemporalPosicionHeap+'];'
+        Texto += '\ngoto '+EtiquetaSalida+';';
+        Texto += '\n'+EtiquetaSalto+'://Si se trato de acceder al indice de un arreglo y no existe se retorna 0';
+        if(Simbolo.getTipoDato().Tipo == 'valor'){
+            let Valor;
+            let ValValor;
+            if(Simbolo.getTipoDato().TipoDato == 'entero'){
+                Valor = new Valor_CAAS('entero',0,this.Linea);
+                ValValor = Valor.Ejecutar(EntornoPadre);
+            }else if(Simbolo.getTipoDato().TipoDato == 'decimal'){
+                Valor = new Valor_CAAS('decimal',0,this.Linea);
+                ValValor = Valor.Ejecutar(EntornoPadre);
+            }else if(Simbolo.getTipoDato().TipoDato == 'booleano'){
+                Valor = new Valor_CAAS('booleano',0,this.Linea);
+                ValValor = Valor.Ejecutar(EntornoPadre);
+                for(let i = 0;i<ValValor.ListaVerdaderos.length;i++){
+                    ValValor.Texto += '\n'+ValValor.ListaVerdaderos[i]+':';
+                }
+                let NuevoTemporalValValor = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+                ValValor.Temporal = NuevoTemporalValValor;
+                ValValor.Texto+= '\n'+NuevoTemporalValValor+' = 1;';
+                let NuevaEtiquetaSalidaValValor = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+                ValValor.Texto+= '\ngoto '+NuevaEtiquetaSalidaValValor+';';
+                for(let i = 0;i<ValValor.ListaFalsos.length;i++){
+                    ValValor.Texto += '\n'+ValValor.ListaFalsos[i]+':';
+                }            
+                ValValor.Texto+= '\n'+NuevoTemporalValValor+' = 0;';      
+                ValValor.Texto+= '\n'+NuevaEtiquetaSalidaValValor+':';
+            }else if(Simbolo.getTipoDato().TipoDato == 'caracter'){
+                Valor = new Valor_CAAS('caracter',0,this.Linea);
+                ValValor = Valor.Ejecutar(EntornoPadre);
+            }else if(Simbolo.getTipoDato().TipoDato == 'cadena'){
+                Valor = new Valor_CAAS('cadena','',this.Linea);
+                ValValor = Valor.Ejecutar(EntornoPadre);
+            }
+            Texto += ValValor.Texto;
+            Texto += '\n'+TemporalPosicion+' = '+ValValor.Temporal+';';
+        }else{
+            Texto += '\n'+TemporalPosicion+' = -1;'
+        }
+        Texto += '\n'+EtiquetaSalida+':';
+    //Comparar las dimensiones
+        let ValRetorno = new Object();
+        ValRetorno.TipoDato = Simbolo.getTipoDato().TipoDato;
+        ValRetorno.Tipo = Simbolo.getTipoDato().Tipo;
+        ValRetorno.Temporal = TemporalPosicion;
+        ValRetorno.Texto = Texto;
+        alert('Termine de declararlo');
+        return ValRetorno;
     };
     this.type = function(){
         return 'variablearreglo';
@@ -3584,7 +4014,7 @@ function VariableArreglo_CAAS(x,y,linea) {
 //## MANEJO DE TODO LO NECESARIO PARA PODER TRADUCIR ##
 //#####################################################
 
-function Simbolo_CAAS(id,Tipo,TipoDato,Size,Posicion,Ambito,Acceso,Estatico,final,abstract,Extiende,Dimensiones,Parametros){
+function Simbolo_CAAS(id,Tipo,TipoDato,Size,Posicion,Ambito,Acceso,Estatico,final,abstract,Extiende,Dimensiones,Parametros,Localizacion){
     this.Identificador = id;
     this.Tipo = Tipo;
     this.TipoDato= TipoDato;
@@ -3598,6 +4028,7 @@ function Simbolo_CAAS(id,Tipo,TipoDato,Size,Posicion,Ambito,Acceso,Estatico,fina
     this.Extiende = Extiende;    
     this.Dimensiones = Dimensiones;
     this.Parametros = Parametros;
+    this.Localizacion = Localizacion;
     this.getIdentificador = function(){
         if(this.Identificador==null||this.Identificador==undefined){
             return 'null';
@@ -3696,6 +4127,12 @@ function Simbolo_CAAS(id,Tipo,TipoDato,Size,Posicion,Ambito,Acceso,Estatico,fina
         }
         return this.Parametros
     }
+    this.getLocalizacion = function(){
+        if(this.Localizacion==null||this.Localizacion==undefined){
+            return 'null';
+        }
+        return this.Localizacion;        
+    }
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
         this.Errores.Agregar('semantico',descripcion,'Simbolo',-1);
@@ -3707,21 +4144,24 @@ function Simbolo_CAAS(id,Tipo,TipoDato,Size,Posicion,Ambito,Acceso,Estatico,fina
 
 function Entorno_CAAS(){
     this.Ambito = [];
+    this.Localizacion = 'Heap';
     this.Nodos = [];
     this.Etiquetas = new Manejador_Etiquetas();
     this.Temporales = new Manejador_Temporales();
-    this.AgregarSimbolo = function(id,Tipo,TipoDato,Size,Posicion,Ambito,Acceso,Estatico,final,abstract,Extiende,Dimensiones,Parametros){        
-        let simbolo = new Simbolo_CAAS(id,Tipo,TipoDato,Size,Posicion,Ambito,Acceso,Estatico,final,abstract,Extiende,Dimensiones,Parametros);
+    this.AgregarSimbolo = function(id,Tipo,TipoDato,Size,Posicion,Ambito,Acceso,Estatico,final,abstract,Extiende,Dimensiones,Parametros,Localizacion){
+        let simbolo = new Simbolo_CAAS(id,Tipo,TipoDato,Size,Posicion,Ambito,Acceso,Estatico,final,abstract,Extiende,Dimensiones,Parametros,Localizacion);
         this.Nodos.push(simbolo);
     }
     this.VerTabla = function(){
+        Texto = '';
         for(let i = 0;i<this.Nodos.length;i++){
-            alert('Id:'+ this.Nodos[i].getIdentificador()+', Tipo:'+ this.Nodos[i].getTipo()+', TipoDato:'+ this.Nodos[i].getTipoDato_Texto()+', Size:'+ this.Nodos[i].getSize()+', Posicion:'+ this.Nodos[i].getPosicion()+' Ambito: '+this.Nodos[i].getAmbito_Texto());
+            Texto+='Id:'+ this.Nodos[i].getIdentificador()+', Tipo:'+ this.Nodos[i].getTipo()+', TipoDato:'+ this.Nodos[i].getTipoDato_Texto()+', Size:'+ this.Nodos[i].getSize()+', Pos:'+ this.Nodos[i].getPosicion()+', Amb: '+this.Nodos[i].getAmbito_Texto()+', Loc: '+this.Nodos[i].getLocalizacion()+'\n';
         }
+        alert(Texto);
     }
     this.getSimboloVariable = function(Ambito,Identificador){
         for(let i = 0;i<this.Nodos.length&&Ambito.length>0;i++){
-            if(this.Nodos[i].getTipo() =='variable'){
+            if(this.Nodos[i].getTipo() =='variable'||this.Nodos[i].getTipo() =='arreglo'){
                 if(Ambito.length == this.Nodos[i].getAmbito().length){
                     let MismoAmbito = true;
                     for(let j = 0;j<Ambito.length&&MismoAmbito;j++){
@@ -3731,6 +4171,30 @@ function Entorno_CAAS(){
                     }
                     if(MismoAmbito){
                         if(this.Nodos[i].getIdentificador()==Identificador){
+                            return this.Nodos[i];
+                        }          
+                    }
+                }
+            }
+            if((i+1)==this.Nodos.length){
+                Ambito.pop();
+                i=-1;
+            }
+        }
+        return null;
+    }
+    this.getSimboloVariableArreglo = function(Ambito,Identificador,Dimensiones){
+        for(let i = 0;i<this.Nodos.length&&Ambito.length>0;i++){
+            if(this.Nodos[i].getTipo() =='arreglo'){
+                if(Ambito.length == this.Nodos[i].getAmbito().length){
+                    let MismoAmbito = true;
+                    for(let j = 0;j<Ambito.length&&MismoAmbito;j++){
+                        if(Ambito[j] != this.Nodos[i].getAmbito()[j]){
+                            MismoAmbito = false;
+                        }
+                    }
+                    if(MismoAmbito){
+                        if(this.Nodos[i].getIdentificador()==Identificador&&this.Nodos[i].getDimensiones()==Dimensiones){
                             return this.Nodos[i];
                         }          
                     }
@@ -3782,6 +4246,12 @@ function Entorno_CAAS(){
     }
     this.getAmbito = function(){
         return this.Ambito;
+    }
+    this.setLocalizacion = function(Localizacion){
+        this.Localizacion = Localizacion;
+    }
+    this.getLocalizacion = function(){
+        return this.Localizacion;
     }
 }
 
