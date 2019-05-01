@@ -324,7 +324,7 @@ SENTENCIAIF
 INSTRUCCIONTRANSFERENCIA
     : break     { $$ = new Break_CAAS(yylineno); }
     | continue  { $$ = new Continue_CAAS(yylineno); }
-    | return E  { $$ = new Return_CAAS(undefined,yylineno); }
+    | return E  { $$ = new Return_CAAS($2,yylineno); }
     | return    { $$ = new Return_CAAS(undefined,yylineno); }
     ;
 
@@ -334,10 +334,10 @@ ASIGNACIONVARIABLE
     ;
 
 DECLARACIONVARIABLE
-    : MODIFICADORES TIPO LISTADECLARACIONVARIABLES        {$$ = new DeclaracionVariable_CAAS($1,$2,$3,yylineno); }
-    | MODIFICADORES VARIABLE LISTADECLARACIONVARIABLES    {$$ = new DeclaracionVariable_CAAS($1,$2,$3,yylineno);}
-    | TIPO LISTADECLARACIONVARIABLES        {$$ = new DeclaracionVariable_CAAS([],$1,$2,yylineno); }
-    | VARIABLE LISTADECLARACIONVARIABLES    {$$ = new DeclaracionVariable_CAAS([],$1,$2,yylineno);}
+    : MODIFICADORES TIPO LISTADECLARACIONVARIABLES          {$$ = new DeclaracionVariable_CAAS($1,$2,$3,yylineno); }
+    | MODIFICADORES VARIABLE LISTADECLARACIONVARIABLES      {temporalCAAS =new Object(); temporalCAAS.TipoDato=$1.Identificador;temporalCAAS.Tipo='objeto';$$ = new DeclaracionVariable_CAAS($1,temporalCAAS,$3,yylineno);}
+    | TIPO LISTADECLARACIONVARIABLES                        {$$ = new DeclaracionVariable_CAAS([],$1,$2,yylineno); }
+    | VARIABLE LISTADECLARACIONVARIABLES                    {temporalCAAS =new Object(); temporalCAAS.TipoDato=$1.Identificador;temporalCAAS.Tipo='objeto'; $$ = new DeclaracionVariable_CAAS([],temporalCAAS,$2,yylineno);}
     | DECLARACIONVARIABLELINKEDLIST {$$ = $1;}
     ;
 
@@ -452,7 +452,7 @@ CASTEOEXPLICITO
     ;
 
 CREACIONINSTANCIA
-    : 'new' VARIABLE '(' LISTAVALORESOPCIONAL ')'   {$$ = new NuevoObjeto_CAAS($2,$4,yylineno);}//falta
+    : 'new' VARIABLE '(' LISTAVALORESOPCIONAL ')'   {$$ = new NuevoObjeto_CAAS($2.Identificador,$4,yylineno);}//falta
     | RECURSIVIDADTIPOARREGLOTIPO                   {$$ = new NuevoArregloTipo_CAAS($1.TipoDato, $1.Dimensiones,yylineno);}
     | 'new' VARIABLEARREGLO                         {$$ = new NuevoArregloObjeto_CAAS($2.Identificador, $2.Dimensiones,yylineno);}
     | 'new' linkedlist menor mayor '(' ')'          {$$ = new NuevoLinkedList_CAAS(yylineno); }//falta
@@ -533,8 +533,8 @@ VALOR
     | valcadena         {$$ = new Valor_CAAS('cadena',yytext,yylineno);}
     | nulo              {$$ = new Valor_CAAS('nulo',null,yylineno);}
     | VARIABLE          {$$ = new Variable_CAAS($1.Identificador,yylineno); }//falta
-    | LLAMADAFUNCION    {$$ = $1; }//falta
-    | ARREGLO           {$$ = $1; }//falta
+    | LLAMADAFUNCION    {$$ = $1; }
+    | ARREGLO           {$$ = $1; }
     ;
 
 LLAMADAFUNCION
@@ -547,20 +547,20 @@ ARREGLO
     | VARIABLEARREGLO  {$$ = new VariableArreglo_CAAS($1.Identificador, $1.Dimensiones,yylineno);}  
     ;
 
-VARIABLEARREGLO //falta
+VARIABLEARREGLO
     : VARIABLEARREGLO '[' E ']'     {$$ = $1; $$.Dimensiones.push($3); }
     | VARIABLE '[' E ']'            {$$ = $1; $$.Dimensiones = []; $$.Dimensiones.push($3); $$.TipoDato = $$.Identificador; }
     ;
 
 VARIABLE 
-    : VARIABLE '.' super            {$$ = $1; $$.Identificador.push($1); }
-    | VARIABLE '.' identificador    {$$ = $1; $$.Identificador.push($1); }
+    : VARIABLE '.' super            {$$ = $1; $$.Identificador.push('super'); }//falta
+    | VARIABLE '.' identificador    {$$ = $1; $$.Identificador.push($3); }//falta
     | identificador                 {$$ = new Object(); $$.Identificador = []; $$.Identificador.push($1); $$.Tipo='objeto'; }
-    | super                         {$$ = new Object(); $$.Identificador = []; $$.Identificador.push($1); $$.Tipo='objeto'; }
-    | this                          {$$ = new Object(); $$.Identificador = []; $$.Identificador.push($1); $$.Tipo='objeto'; }
+    | super                         {$$ = new Object(); $$.Identificador = []; $$.Identificador.push('super'); $$.Tipo='objeto'; }
+    | this                          {$$ = new Object(); $$.Identificador = []; $$.Identificador.push('this'); $$.Tipo='objeto'; }
     ;
 
-LISTAVALORESOPCIONAL //falta
+LISTAVALORESOPCIONAL
     :  {$$ = [];}
     | LISTAVALORES { $$ = $1;}
     ;

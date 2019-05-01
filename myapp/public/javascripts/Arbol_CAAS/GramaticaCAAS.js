@@ -215,7 +215,10 @@ break;
 case 66:
  this.$ = new Continue_CAAS(yylineno); 
 break;
-case 67: case 68:
+case 67:
+ this.$ = new Return_CAAS($$[$0],yylineno); 
+break;
+case 68:
  this.$ = new Return_CAAS(undefined,yylineno); 
 break;
 case 69:
@@ -228,13 +231,13 @@ case 71:
 this.$ = new DeclaracionVariable_CAAS($$[$0-2],$$[$0-1],$$[$0],yylineno); 
 break;
 case 72:
-this.$ = new DeclaracionVariable_CAAS($$[$0-2],$$[$0-1],$$[$0],yylineno);
+temporalCAAS =new Object(); temporalCAAS.TipoDato=$$[$0-2].Identificador;temporalCAAS.Tipo='objeto';this.$ = new DeclaracionVariable_CAAS($$[$0-2],temporalCAAS,$$[$0],yylineno);
 break;
 case 73:
 this.$ = new DeclaracionVariable_CAAS([],$$[$0-1],$$[$0],yylineno); 
 break;
 case 74:
-this.$ = new DeclaracionVariable_CAAS([],$$[$0-1],$$[$0],yylineno);
+temporalCAAS =new Object(); temporalCAAS.TipoDato=$$[$0-1].Identificador;temporalCAAS.Tipo='objeto'; this.$ = new DeclaracionVariable_CAAS([],temporalCAAS,$$[$0],yylineno);
 break;
 case 76: case 78:
 this.$ = new DeclaracionLinkedList_CAAS($$[$0-7],$$[$0-4],$$[$0-2],$$[$0],yylineno);
@@ -336,7 +339,7 @@ case 136:
 this.$ = new ToChar_CAAS($$[$0],yylineno); 
 break;
 case 137:
-this.$ = new NuevoObjeto_CAAS($$[$0-3],$$[$0-1],yylineno);
+this.$ = new NuevoObjeto_CAAS($$[$0-3].Identificador,$$[$0-1],yylineno);
 break;
 case 138:
 this.$ = new NuevoArregloTipo_CAAS($$[$0].TipoDato, $$[$0].Dimensiones,yylineno);
@@ -494,11 +497,20 @@ break;
 case 192:
 this.$ = $$[$0-3]; this.$.Dimensiones = []; this.$.Dimensiones.push($$[$0-1]); this.$.TipoDato = this.$.Identificador; 
 break;
-case 193: case 194:
-this.$ = $$[$0-2]; this.$.Identificador.push($$[$0-2]); 
+case 193:
+this.$ = $$[$0-2]; this.$.Identificador.push('super'); 
 break;
-case 195: case 196: case 197:
+case 194:
+this.$ = $$[$0-2]; this.$.Identificador.push($$[$0]); 
+break;
+case 195:
 this.$ = new Object(); this.$.Identificador = []; this.$.Identificador.push($$[$0]); this.$.Tipo='objeto'; 
+break;
+case 196:
+this.$ = new Object(); this.$.Identificador = []; this.$.Identificador.push('super'); this.$.Tipo='objeto'; 
+break;
+case 197:
+this.$ = new Object(); this.$.Identificador = []; this.$.Identificador.push('this'); this.$.Tipo='objeto'; 
 break;
 case 199:
  this.$ = $$[$0];

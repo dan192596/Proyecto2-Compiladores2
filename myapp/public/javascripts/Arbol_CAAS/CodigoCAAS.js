@@ -21,15 +21,24 @@ function BloquePrincipal_CAAS(x,linea){
         let Ambito = [];
         for(let i = 0;i <this.Instrucciones.length;i++){
             if(this.Instrucciones[i].type()=='declaracion_clase'){
+                Ambito = [];
                 this.Instrucciones[i].PrimeraPasada(EntornoPadre,Ambito);
             }
         }
         for(let i = 0;i <this.Instrucciones.length;i++){
+            Ambito = [];
             Texto += this.Instrucciones[i].Ejecutar(EntornoPadre,Ambito);
         }
         EntornoPadre.VerTabla();
-        Texto += '\ncall main;'
-        Texto += '\ncall main_main;'
+        Texto += '\n\n\n'
+        Texto += '//### LLAMADA A METODO MAIN ###'
+        Texto += '\nHeap[0] = 0;//Guardo la posicion en heap de la clase main'        
+        Texto += '\nH = H + 1 ;'
+        Texto += '\nStack[0] = 0;//Guardo en stack el apuntador a la clase main'
+        //Texto += '\nH = P + 1;'
+        Texto += '\ncall main;'        
+        Texto += '\ncall Metodo_main_main_;'
+        //Texto += '\nH = P - 1;'
         consola_201404268.setValue(Texto);
     };
     this.type = function(){
@@ -174,6 +183,12 @@ function BloqueInstruccionesClase_CAAS(x,linea){
                 }else{                    
                     Texto += this.Instrucciones[i].Ejecutar(EntornoPadre,PosicionRelativaStack,Ambito,PrimeraPasada);
                 }
+            }else if(this.Instrucciones[i].type()=='declaracion_constructor'){            
+                if(PrimeraPasada){
+                    this.Instrucciones[i].Ejecutar(EntornoPadre,PosicionRelativaStack,Ambito,PrimeraPasada);
+                }else{                    
+                    Texto += this.Instrucciones[i].Ejecutar(EntornoPadre,PosicionRelativaStack,Ambito,PrimeraPasada);
+                }
             }else{
                 if(PrimeraPasada){
                     this.Instrucciones[i].Ejecutar(EntornoPadre);
@@ -225,7 +240,7 @@ function BloqueInstrucciones_CAAS(x,linea){
             this.Instrucciones[i].RecuperarErrores(EntornoPadre);
         }
     };
-    this.Ejecutar = function(EntornoPadre,PosicionRelativaStack, Ambito){        
+    this.Ejecutar = function(EntornoPadre,PosicionRelativaStack, Ambito){
         let Texto = '';
         for(let i = 0; i <this.Instrucciones.length; i ++){
             if(this.Instrucciones[i].type()=='declaracion_variable'){
@@ -821,22 +836,98 @@ function Return_CAAS(x,linea) {
         ErroresPadre.AgregarErrores(this.Errores);
     };
     this.Ejecutar = function(EntornoPadre){
-        let ValValor = this.Valor.Ejecutar(EntornoPadre);
-        if(ValValor.TipoDato == 'booleano'){
-            for(let i = 0;i<ValValor.ListaVerdaderos.length;i++){
-                ValValor.Texto += '\n'+ValValor.ListaVerdaderos[i]+':';
+        let MetodoActual = EntornoPadre.getMetodoActual();
+        let ValValor;
+        if(this.Valor!=undefined){
+            ValValor = this.Valor.Ejecutar(EntornoPadre);
+            if(ValValor.Tipo!=MetodoActual.getTipoDato().Tipo||ValValor.TipoDato!=MetodoActual.getTipoDato().TipoDato){
+                alert('Se debe retornar un tipo de dato igual que el del metodo');
+                this.AgregarError('Se debe retornar un tipo de dato igual que el del metodo');
             }
-            let NuevoTemporalValValor = 't'+EntornoPadre.Temporales.getNuevoTemporal();
-            ValValor.Temporal = NuevoTemporalValValor;
-            ValValor.Texto+= '\n'+NuevoTemporalValValor+' = 1;';
-            let NuevaEtiquetaSalidaValValor = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
-            ValValor.Texto+= '\ngoto '+NuevaEtiquetaSalidaValValor+';';
-            for(let i = 0;i<ValValor.ListaFalsos.length;i++){
-                ValValor.Texto += '\n'+ValValor.ListaFalsos[i]+':';
-            }            
-            ValValor.Texto+= '\n'+NuevoTemporalValValor+' = 0;';      
-            ValValor.Texto+= '\n'+NuevaEtiquetaSalidaValValor+':';
+            if(ValValor.TipoDato == 'booleano'){
+                for(let i = 0;i<ValValor.ListaVerdaderos.length;i++){
+                    ValValor.Texto += '\n'+ValValor.ListaVerdaderos[i]+':';
+                }
+                let NuevoTemporalValValor = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+                ValValor.Temporal = NuevoTemporalValValor;
+                ValValor.Texto+= '\n'+NuevoTemporalValValor+' = 1;';
+                let NuevaEtiquetaSalidaValValor = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+                ValValor.Texto+= '\ngoto '+NuevaEtiquetaSalidaValValor+';';
+                for(let i = 0;i<ValValor.ListaFalsos.length;i++){
+                    ValValor.Texto += '\n'+ValValor.ListaFalsos[i]+':';
+                }            
+                ValValor.Texto+= '\n'+NuevoTemporalValValor+' = 0;';      
+                ValValor.Texto+= '\n'+NuevaEtiquetaSalidaValValor+':';
+            }
+        }else{
+            if(MetodoActual.getDimensiones()==0){
+                if(TipoDato.TipoDato == 'entero'&&TipoDato.Tipo == 'valor'){
+                    this.Valor = new Valor_CAAS('entero',0,this.Linea);
+                    ValValor = this.Valor.Ejecutar(EntornoPadre);
+                }else if(TipoDato.TipoDato == 'decimal'&&TipoDato.Tipo == 'valor'){
+                    this.Valor = new Valor_CAAS('decimal',0,this.Linea);
+                    ValValor = this.Valor.Ejecutar(EntornoPadre);
+                }else if(TipoDato.TipoDato == 'booleano'&&TipoDato.Tipo == 'valor'){
+                    this.Valor = new Valor_CAAS('booleano',0,this.Linea);
+                    ValValor = this.Valor.Ejecutar(EntornoPadre);
+                    for(let i = 0;i<ValValor.ListaVerdaderos.length;i++){
+                        ValValor.Texto += '\n'+ValValor.ListaVerdaderos[i]+':';
+                    }
+                    let NuevoTemporalValValor = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+                    ValValor.Temporal = NuevoTemporalValValor;
+                    ValValor.Texto+= '\n'+NuevoTemporalValValor+' = 1;';
+                    let NuevaEtiquetaSalidaValValor = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+                    ValValor.Texto+= '\ngoto '+NuevaEtiquetaSalidaValValor+';';
+                    for(let i = 0;i<ValValor.ListaFalsos.length;i++){
+                        ValValor.Texto += '\n'+ValValor.ListaFalsos[i]+':';
+                    }            
+                    ValValor.Texto+= '\n'+NuevoTemporalValValor+' = 0;';      
+                    ValValor.Texto+= '\n'+NuevaEtiquetaSalidaValValor+':';
+                }else if(TipoDato.TipoDato == 'caracter'&&TipoDato.Tipo == 'valor'){
+                    this.Valor = new Valor_CAAS('caracter',0,this.Linea);
+                    ValValor = this.Valor.Ejecutar(EntornoPadre);
+                }else if(TipoDato.TipoDato == 'cadena'&&TipoDato.Tipo == 'valor'){
+                    this.Valor = new Valor_CAAS('cadena','',this.Linea);
+                    ValValor = this.Valor.Ejecutar(EntornoPadre);
+                }else{
+                    //si es un objeto aun no lo tengo
+                }
+                let TemporalPosicionStack = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+                if(EntornoPadre.getLocalizacion()=='Stack'){ 
+                    ValValor.Texto += '\n'+TemporalPosicionStack+' = P + '+PosicionRelativaStack+';';
+                    ValValor.Texto += '\nStack['+TemporalPosicionStack+'] = '+ValValor.Temporal+';';        
+                }else if(EntornoPadre.getLocalizacion() == 'Heap'){
+                    let TemporalPosicionHeap = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+                    ValValor.Texto += '\n'+TemporalPosicionStack+' = P + 0;';
+                    ValValor.Texto += '\n'+TemporalPosicionHeap+' = Stack['+TemporalPosicionStack+'];';
+                    ValValor.Texto += '\n'+TemporalPosicionHeap+' = '+TemporalPosicionHeap + ' + '+PosicionRelativaStack+';';
+                    ValValor.Texto += '\nHeap['+TemporalPosicionHeap+'] = '+ValValor.Temporal+';';
+                }else{
+                    alert('Error no se reconocio la localizacion '+EntornoPadre.getLocalizacion());
+                }
+            }else{
+                if(TipoDato.Tipo == 'valor'){
+                    let DimensionesArreglo = [];
+                    for(let i = 0;i<MetodoActual.getDimensiones();i++){
+                        DimensionesArreglo.push(new Valor_CAAS('entero',0,this.Linea));
+                    }
+                    this.Valor = new NuevoArregloTipo_CAAS(MetodoActual.getTipo().TipoDato, DimensionesArreglo,this.Linea);
+                    ValValor = this.Valor.Ejecutar(EntornoPadre);
+                }else{
+                    let DimensionesArreglo = [];
+                    for(let i = 0;i<MetodoActual.getDimensiones();i++){
+                        DimensionesArreglo.push(new Valor_CAAS('entero',0,this.Linea));
+                    }
+                    this.Valor = new NuevoArregloObjeto_CAAS(MetodoActual.getTipo().TipoDato, DimensionesArreglo,this.Linea);
+                    ValValor = this.Valor.Ejecutar(EntornoPadre);
+                }
+            }
         }
+        let TemporalPosicionStack = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+        ValValor.Texto += '\n'+TemporalPosicionStack+' = P + 1;';
+        ValValor.Texto += '\nStack['+TemporalPosicionStack+'] = '+ValValor.Temporal+';';
+        ValValor.Texto += '\ngoto '+EntornoPadre.getEtiquetaSalidaMetodo()+';';
+        return ValValor.Texto;
     };
     this.type = function(){
         return 'return';
@@ -883,12 +974,23 @@ function AsignacionVariable_CAAS(x,y,linea) {
         let Ambito = EntornoPadre.getAmbito();
         let Simbolo =null;
         if(this.Variable.length==1){
-            Simbolo = EntornoPadre.getSimboloVariable(Ambito,this.Variable[0]);
-        }else{
-            
+            Simbolo = EntornoPadre.getSimboloVariable(Array.from(Ambito),this.Variable[0]);
+        }else if(this.Variable.length>1){
+            let i = 0;
+            if(this.Variable[0]=='this'){
+                Simbolo = EntornoPadre.getSimboloThisVariable(Array.from(Ambito),this.Variable[1]);
+                i = 2;
+            }else{
+                Simbolo = EntornoPadre.getSimboloVariable(Array.from(Ambito),this.Variable[0]);
+                i = 1;
+            }
+            for(;i<this.Variable.length;i++){
+                //Realizar busqueda de valor entre clases
+            }
         }
-        if(Simbolo==null){
+        if(Simbolo==null||Simbolo == undefined){
             this.AgregarError('No se encontro la variable '+this.Variable);
+            alert('1No se encontro la variable '+this.Variable);
             return;
         }
         if(ValValor.TipoDato=='booleano'&&ValValor.Tipo=='valor'){
@@ -908,10 +1010,21 @@ function AsignacionVariable_CAAS(x,y,linea) {
         }
         let Texto = '';
         Texto += ValValor.Texto;
-        let TemporalPosicionStack = 't'+EntornoPadre.Temporales.getNuevoTemporal();        
-        Texto += '\n'+TemporalPosicionStack+' = P + '+Simbolo.getPosicion()+';';
-        Texto += '\nStack['+TemporalPosicionStack+'] = '+ValValor.Temporal+';';
+        let TemporalPosicionStack = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+        if(Simbolo.getLocalizacion()=='Stack'){ 
+            Texto += '\n'+TemporalPosicionStack+' = P + '+Simbolo.getPosicion()+';';
+            Texto += '\nStack['+TemporalPosicionStack+'] = '+ValValor.Temporal+';';
+        }else if(Simbolo.getLocalizacion() == 'Heap'){
+            let TemporalPosicionHeap = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+            Texto += '\n'+TemporalPosicionStack+' = P + 0;';
+            Texto += '\n'+TemporalPosicionHeap+' = Stack['+TemporalPosicionStack+'];';
+            Texto += '\n'+TemporalPosicionHeap+' = '+TemporalPosicionHeap + ' + '+Simbolo.getPosicion()+';';            
+            Texto += '\nHeap['+TemporalPosicionHeap+'] = '+ValValor.Temporal+';';
+        }else{
+            alert('1Error no se reconocio la localizacion '+Simbolo.getLocalizacion());
+        }
         return Texto;
+        
     };
     this.type = function(){
         return 'asignacion_variable';
@@ -1062,10 +1175,20 @@ function SubDeclaracionVariable_CAAS(x,y,z,linea) {
                             return;
                         }
                     }
-                }               
-                let NuevoTemporalValValor = 't'+EntornoPadre.Temporales.getNuevoTemporal();
-                ValValor.Texto += '\n'+NuevoTemporalValValor+' = P + '+PosicionRelativaStack+';'
-                ValValor.Texto += '\nStack['+NuevoTemporalValValor+'] = '+ValValor.Temporal+';'                
+                }                
+                let TemporalPosicionStack = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+                if(EntornoPadre.getLocalizacion()=='Stack'){ 
+                    ValValor.Texto += '\n'+TemporalPosicionStack+' = P + '+PosicionRelativaStack+';';
+                    ValValor.Texto += '\nStack['+TemporalPosicionStack+'] = '+ValValor.Temporal+';';        
+                }else if(EntornoPadre.getLocalizacion() == 'Heap'){
+                    let TemporalPosicionHeap = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+                    ValValor.Texto += '\n'+TemporalPosicionStack+' = P + 0;';
+                    ValValor.Texto += '\n'+TemporalPosicionHeap+' = Stack['+TemporalPosicionStack+'];';
+                    ValValor.Texto += '\n'+TemporalPosicionHeap+' = '+TemporalPosicionHeap + ' + '+PosicionRelativaStack+';';
+                    ValValor.Texto += '\nHeap['+TemporalPosicionHeap+'] = '+ValValor.Temporal+';';
+                }else{
+                    alert('Error no se reconocio la localizacion '+EntornoPadre.getLocalizacion());
+                }
             }else{
                 if(this.Dimensiones ==0){
                     if(TipoDato.TipoDato == 'entero'&&TipoDato.Tipo == 'valor'){
@@ -1099,9 +1222,19 @@ function SubDeclaracionVariable_CAAS(x,y,z,linea) {
                     }else{
                         //si es un objeto aun no lo tengo
                     }
-                    let NuevoTemporalValValor = 't'+EntornoPadre.Temporales.getNuevoTemporal();
-                    ValValor.Texto += '\n'+NuevoTemporalValValor+' = P + '+PosicionRelativaStack+';'
-                    ValValor.Texto += '\nStack['+NuevoTemporalValValor+'] = '+ValValor.Temporal+';'
+                    let TemporalPosicionStack = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+                    if(EntornoPadre.getLocalizacion()=='Stack'){ 
+                        ValValor.Texto += '\n'+TemporalPosicionStack+' = P + '+PosicionRelativaStack+';';
+                        ValValor.Texto += '\nStack['+TemporalPosicionStack+'] = '+ValValor.Temporal+';';        
+                    }else if(EntornoPadre.getLocalizacion() == 'Heap'){
+                        let TemporalPosicionHeap = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+                        ValValor.Texto += '\n'+TemporalPosicionStack+' = P + 0;';
+                        ValValor.Texto += '\n'+TemporalPosicionHeap+' = Stack['+TemporalPosicionStack+'];';
+                        ValValor.Texto += '\n'+TemporalPosicionHeap+' = '+TemporalPosicionHeap + ' + '+PosicionRelativaStack+';';
+                        ValValor.Texto += '\nHeap['+TemporalPosicionHeap+'] = '+ValValor.Temporal+';';
+                    }else{
+                        alert('Error no se reconocio la localizacion '+EntornoPadre.getLocalizacion());
+                    }
                 }else{
                     if(TipoDato.Tipo == 'valor'){
                         let DimensionesArreglo = [];
@@ -1109,6 +1242,13 @@ function SubDeclaracionVariable_CAAS(x,y,z,linea) {
                             DimensionesArreglo.push(new Valor_CAAS('entero',0,this.Linea));
                         }
                         this.Valor = new NuevoArregloTipo_CAAS(TipoDato.TipoDato, DimensionesArreglo,this.Linea);                        
+                        ValValor = this.Valor.Ejecutar(EntornoPadre);
+                    }else{
+                        let DimensionesArreglo = [];
+                        for(let i = 0;i<this.Dimensiones;i++){
+                            DimensionesArreglo.push(new Valor_CAAS('entero',0,this.Linea));
+                        }
+                        this.Valor = new NuevoArregloObjeto_CAAS(TipoDato.TipoDato, DimensionesArreglo,this.Linea);
                         ValValor = this.Valor.Ejecutar(EntornoPadre);
                     }
                 }
@@ -1155,9 +1295,19 @@ function SubDeclaracionVariable_CAAS(x,y,z,linea) {
                         }
                     }
                 }
-                let NuevoTemporalValValor = 't'+EntornoPadre.Temporales.getNuevoTemporal();
-                ValValor.Texto += '\n'+NuevoTemporalValValor+' = P + '+PosicionRelativaStack+';';
-                ValValor.Texto += '\nStack['+NuevoTemporalValValor+'] = '+ValValor.Temporal+';';
+                let TemporalPosicionStack = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+                if(EntornoPadre.getLocalizacion()=='Stack'){ 
+                    ValValor.Texto += '\n'+TemporalPosicionStack+' = P + '+PosicionRelativaStack+';';
+                    ValValor.Texto += '\nStack['+TemporalPosicionStack+'] = '+ValValor.Temporal+';';        
+                }else if(EntornoPadre.getLocalizacion() == 'Heap'){
+                    let TemporalPosicionHeap = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+                    ValValor.Texto += '\n'+TemporalPosicionStack+' = P + 0;';
+                    ValValor.Texto += '\n'+TemporalPosicionHeap+' = Stack['+TemporalPosicionStack+'];';
+                    ValValor.Texto += '\n'+TemporalPosicionHeap+' = '+TemporalPosicionHeap + ' + '+PosicionRelativaStack+';';
+                    ValValor.Texto += '\nHeap['+TemporalPosicionHeap+'] = '+ValValor.Temporal+';';
+                }else{
+                    alert('Error no se reconocio la localizacion '+EntornoPadre.getLocalizacion());
+                }
                 return ValValor.Texto;
             }else{
                 if(this.Dimensiones ==0){                    
@@ -1193,9 +1343,19 @@ function SubDeclaracionVariable_CAAS(x,y,z,linea) {
                     }else{
                         //si es un objeto aun no lo tengo
                     }
-                    let NuevoTemporalValValor = 't'+EntornoPadre.Temporales.getNuevoTemporal();
-                    ValValor.Texto += '\n'+NuevoTemporalValValor+' = P + '+PosicionRelativaStack+';'
-                    ValValor.Texto += '\nStack['+NuevoTemporalValValor+'] = '+ValValor.Temporal+';'
+                    let TemporalPosicionStack = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+                    if(EntornoPadre.getLocalizacion()=='Stack'){ 
+                        ValValor.Texto += '\n'+TemporalPosicionStack+' = P + '+PosicionRelativaStack+';';
+                        ValValor.Texto += '\nStack['+TemporalPosicionStack+'] = '+ValValor.Temporal+';';        
+                    }else if(EntornoPadre.getLocalizacion() == 'Heap'){
+                        let TemporalPosicionHeap = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+                        ValValor.Texto += '\n'+TemporalPosicionStack+' = P + 0;';
+                        ValValor.Texto += '\n'+TemporalPosicionHeap+' = Stack['+TemporalPosicionStack+'];';
+                        ValValor.Texto += '\n'+TemporalPosicionHeap+' = '+TemporalPosicionHeap + ' + '+PosicionRelativaStack+';';
+                        ValValor.Texto += '\nHeap['+TemporalPosicionHeap+'] = '+ValValor.Temporal+';';
+                    }else{
+                        alert('Error no se reconocio la localizacion '+EntornoPadre.getLocalizacion());
+                    }
                     return ValValor.Texto;
                 }else{
                     if(TipoDato.Tipo == 'valor'){
@@ -1204,6 +1364,13 @@ function SubDeclaracionVariable_CAAS(x,y,z,linea) {
                             DimensionesArreglo.push(new Valor_CAAS('entero',0,this.Linea));
                         }
                         this.Valor = new NuevoArregloTipo_CAAS(TipoDato.TipoDato, DimensionesArreglo,this.Linea);                        
+                        ValValor = this.Valor.Ejecutar(EntornoPadre);
+                    }else{
+                        let DimensionesArreglo = [];
+                        for(let i = 0;i<this.Dimensiones;i++){
+                            DimensionesArreglo.push(new Valor_CAAS('entero',0,this.Linea));
+                        }
+                        this.Valor = new NuevoArregloObjeto_CAAS(TipoDato.TipoDato, DimensionesArreglo,this.Linea);
                         ValValor = this.Valor.Ejecutar(EntornoPadre);
                     }
                 }
@@ -1270,17 +1437,14 @@ function DeclaracionMetodo_CAAS(x,y,z,d,p,i,linea) {
         PosicionRelativaStack = 2;//Reiniciando el contador 
 //AGREGAR EL METODO A LA TABLA DE SIMBOLOS
         if(PrimeraPasada){
-            if(this.Dimensiones>0){
-                //Inicializar en heap el tamaño del arreglo
-            }else{
-                EntornoPadre.AgregarSimbolo(this.Identificador,'metodo',this.Tipo,Size,null,Array.from(Ambito),Visibilidad,static,final,abstract,false,this.Dimensiones,this.Parametros,EntornoPadre.getLocalizacion());
-            }
+            EntornoPadre.AgregarSimbolo(this.Identificador,'metodo',this.Tipo,Size,null,Array.from(Ambito),Visibilidad,static,final,abstract,false,this.Dimensiones,this.Parametros,EntornoPadre.getLocalizacion());
             return;
         }
 // DECLARACION DE LOS PARAMETROS
         Ambito.push(this.Identificador);//Aqui aumento el ambito con este metodo debido aque ejecutare lo que esta dentro
         EntornoPadre.setAmbito(Array.from(Ambito));
         EntornoPadre.setLocalizacion('Stack');
+        let ValParametros  = [];
         for(let i = 0;i <this.Parametros.length;i++){
             let finalParametro = false;
             for(let j = 0; j <this.Parametros[j].Modificadores.length;j++){
@@ -1297,10 +1461,25 @@ function DeclaracionMetodo_CAAS(x,y,z,d,p,i,linea) {
                 EntornoPadre.AgregarSimbolo(this.Parametros[i].Identificador,'variable',this.Parametros[i].Tipo,1,PosicionRelativaStack,Array.from(Ambito),'public',false,finalParametro,false,false,0,null,EntornoPadre.getLocalizacion());
                 PosicionRelativaStack++;
             }
+            let ObjetoParametro = new Object();
+            ObjetoParametro.Tipo = this.Parametros[i].Tipo.Tipo;
+            ObjetoParametro.TipoDato = this.Parametros[i].Tipo.TipoDato;
+            ObjetoParametro.CantidadDimensiones = this.Parametros[i].CantidadDimensiones;
+            ValParametros.push(ObjetoParametro);
         }
+//Almacenar en que metodo me encuentro actualmente
+        let MetodoActual = EntornoPadre.getMetodo(Array.from(Ambito), this.Identificador,ValParametros);
+        if(MetodoActual==undefined || MetodoActual == null){
+            alert('No se encontro el metodo actual, Ambito: '+Ambito+ ', Nombre: '+this.Identificador+', Dimensiones: '+ValParametros);
+            return;
+        }
+        EntornoPadre.setMetodoActual(MetodoActual);
+        let EtiquetaSalidaMetodo = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+        EntornoPadre.setEtiquetaSalidaMetodo(EtiquetaSalidaMetodo);
 //OBTENCION DEL CODIGO 3D DE LAS INSTRUCCIONES DENTRO DEL METODO
         let Texto = '';
         Texto = this.Instrucciones.Ejecutar(EntornoPadre,PosicionRelativaStack, Ambito);
+        Texto += '\n'+EtiquetaSalidaMetodo+':';
         Texto = Texto.replace(/\n/g,"\n\t");
         Ambito.pop();//Aqui disminuyo el ambito con este metodo debido aque ejecutare lo que esta dentro
 //DECLARAR EL METODO EN CODIGO 3D
@@ -1312,7 +1491,16 @@ function DeclaracionMetodo_CAAS(x,y,z,d,p,i,linea) {
                 NombreClase += '_'+Ambito[i];
             }
         }
-        Texto = '\nproc '+NombreClase+'_'+this.Identificador+' begin '+Texto+ '\nend';
+        let NombreParametros = '';
+        for(let i = 0;i <ValParametros.length;i++){
+            if(i==0){
+                NombreParametros += ValParametros[i].Tipo+'_'+ValParametros[i].TipoDato;
+            }else{
+                NombreParametros += '_'+ValParametros[i].Tipo+'_'+ValParametros[i].TipoDato;
+            }
+        }
+        let NombreMetodo3D = NombreClase+'_'+this.Identificador+'_'+NombreParametros;
+        Texto = '\nproc Metodo_'+NombreMetodo3D+' begin '+Texto+ '\nend';
         Texto = '\n//Declaracion del metodo '+this.Identificador+Texto;
         return Texto;
     };
@@ -1336,8 +1524,104 @@ function DeclaracionConstructor_CAAS(x,y,z,i,linea) {
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
     };
-    this.Ejecutar = function(EntornoPadre){
-        
+    this.Ejecutar = function(EntornoPadre,PosicionRelativaStack,Ambito,PrimeraPasada){
+        //OBTENER VALOR DE LOS MODIFICADORES
+        let Visibilidad = '';
+        let static = false;
+        let abstract = false;
+        let final = false;
+        let Size = this.Instrucciones.getSize();
+        Size = Size + this.Parametros.length+2;//Posicion de clase en Heap que se guarda en stack y el Return
+        for(let i = 0; i <this.Modificadores.length;i++){
+            switch(this.Modificadores[i]){
+                case 'public':
+                    if(Visibilidad!=''){this.AgregarError('La clase ya posee una visibilidad');} 
+                    Visibilidad = 'public'; 
+                    break;
+                case 'protected':
+                    if(Visibilidad!=''){this.AgregarError('La clase ya posee una visibilidad');} 
+                    Visibilidad = 'protected'; 
+                    break;
+                case 'private':
+                    if(Visibilidad!=''){this.AgregarError('La clase ya posee una visibilidad');} 
+                    Visibilidad = 'private'; 
+                    break;
+                default:
+                    this.AgregarError('Modificador no permitido para declaracion de una clase '+this.Modificadores[i]);
+            }
+        }
+        if(Visibilidad==''){
+            Visibilidad = 'public';
+        }
+        PosicionRelativaStack = 2;//Reiniciando el contador 
+//AGREGAR EL METODO A LA TABLA DE SIMBOLOS
+        if(PrimeraPasada){
+            EntornoPadre.AgregarSimbolo(this.Identificador,'constructor',this.Tipo,Size,null,Array.from(Ambito),Visibilidad,static,final,abstract,false,this.Dimensiones,this.Parametros,EntornoPadre.getLocalizacion());
+            return;
+        }
+// DECLARACION DE LOS PARAMETROS
+        Ambito.push(this.Identificador);//Aqui aumento el ambito con este metodo debido aque ejecutare lo que esta dentro
+        EntornoPadre.setAmbito(Array.from(Ambito));
+        EntornoPadre.setLocalizacion('Stack');
+        let ValParametros  = [];
+        for(let i = 0;i <this.Parametros.length;i++){
+            let finalParametro = false;
+            for(let j = 0; j <this.Parametros[j].Modificadores.length;j++){
+                switch(this.Modificadores[j]){
+                    case 'final':if(finalParametro){this.AgregarError('Modificador final ya utilizado en declaracion');}finalParametro = true;break;
+                    default:
+                        this.AgregarError('Modificador '+this.Parametros[i].Modificadores[j]+ ' no permitido para declaracion de un parametro');
+                }
+            }
+            if(this.Parametros[i].CantidadDimensiones>0){
+                EntornoPadre.AgregarSimbolo(this.Parametros[i].Identificador,'arreglo',this.Parametros[i].Tipo,1,PosicionRelativaStack,Array.from(Ambito),'public',false,finalParametro,false,false,0,null,EntornoPadre.getLocalizacion());
+                PosicionRelativaStack++;
+            }else{
+                EntornoPadre.AgregarSimbolo(this.Parametros[i].Identificador,'variable',this.Parametros[i].Tipo,1,PosicionRelativaStack,Array.from(Ambito),'public',false,finalParametro,false,false,0,null,EntornoPadre.getLocalizacion());
+                PosicionRelativaStack++;
+            }
+            let ObjetoParametro = new Object();
+            ObjetoParametro.Tipo = this.Parametros[i].Tipo.Tipo;
+            ObjetoParametro.TipoDato = this.Parametros[i].Tipo.TipoDato;
+            ObjetoParametro.CantidadDimensiones = this.Parametros[i].CantidadDimensiones;
+            ValParametros.push(ObjetoParametro);
+        }
+//Almacenar en que Constructor me encuentro actualmente
+        let MetodoActual = EntornoPadre.getConstructor(Array.from(Ambito), this.Identificador,ValParametros);
+        if(MetodoActual==undefined || MetodoActual == null){
+            alert('No se encontro el constructor actual, Ambito: '+Ambito+ ', Nombre: '+this.Identificador+', Dimensiones: '+ValParametros);
+            return;
+        }
+        EntornoPadre.setMetodoActual(MetodoActual);
+        let EtiquetaSalidaMetodo = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+        EntornoPadre.setEtiquetaSalidaMetodo(EtiquetaSalidaMetodo);
+//OBTENCION DEL CODIGO 3D DE LAS INSTRUCCIONES DENTRO DEL METODO
+        let Texto = '';
+        Texto = this.Instrucciones.Ejecutar(EntornoPadre,PosicionRelativaStack, Ambito);
+        Texto += '\n'+EtiquetaSalidaMetodo+':';
+        Texto = Texto.replace(/\n/g,"\n\t");
+        Ambito.pop();//Aqui disminuyo el ambito con este metodo debido aque ejecutare lo que esta dentro
+//DECLARAR EL METODO EN CODIGO 3D
+        let NombreClase = '';
+        for(let i = 0;i<Ambito.length;i++){
+            if(i==0){
+                NombreClase += Ambito[i];
+            }else{
+                NombreClase += '_'+Ambito[i];
+            }
+        }
+        let NombreParametros = '';
+        for(let i = 0;i <ValParametros.length;i++){
+            if(i==0){
+                NombreParametros += ValParametros[i].Tipo+'_'+ValParametros[i].TipoDato;
+            }else{
+                NombreParametros += '_'+ValParametros[i].Tipo+'_'+ValParametros[i].TipoDato;
+            }
+        }
+        let NombreMetodo3D = NombreClase+'_'+this.Identificador+'_'+NombreParametros;
+        Texto = '\nproc Constructor_'+NombreMetodo3D+' begin '+Texto+ '\nend';
+        Texto = '\n//Declaracion del constructor '+this.Identificador+Texto;
+        return Texto;
     };
     this.type = function(){
         return 'declaracion_constructor';
@@ -1407,7 +1691,7 @@ function CasteoExplicitoBasico_CAAS(x,y,linea) {
                 let TemporalPosicion = 't'+EntornoPadre.Temporales.getNuevoTemporal();
                 let TemporalValor = 't'+EntornoPadre.Temporales.getNuevoTemporal();
                 let EtiquetaRetorno = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
-                let EtiquetaSalida = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();            
+                let EtiquetaSalida = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
                 ValRetorno.Texto += '\n'+TemporalPosicion+' = '+ValValor.Temporal+';';
                 ValRetorno.Texto += '\n'+TemporalValor+' = 0;';
                 ValRetorno.Texto += '\n'+EtiquetaRetorno+':';
@@ -1960,7 +2244,96 @@ function NuevoObjeto_CAAS(x,y,linea) {
         ErroresPadre.AgregarErrores(this.Errores);
     };
     this.Ejecutar = function(EntornoPadre){
-        
+        let ValParametros = [];
+        for(let i=0;i<this.Parametros.length;i++){            
+            ValParametros.push(this.Parametros[i].Ejecutar(EntornoPadre));
+        }
+        let Ambito = [];
+        let Simbolo =null;
+        let NombreClase;
+        let SizeClase;
+        if(this.Nombre.length==1){//Se busca en la misma clase            
+            NombreClase = this.Nombre[0];
+            Simbolo = EntornoPadre.getClase(Array.from(Ambito), NombreClase);
+        }else{
+            for(let i = 0;i<this.Nombre.length-1;i++){
+                alert(this.Nombre[i]);
+                Ambito.push(this.Nombre[i]);
+            }
+            NombreClase = this.Nombre[this.Nombre.length-1];
+            Simbolo = EntornoPadre.getClase(Array.from(Ambito), NombreClase);
+        }
+        if(Simbolo ==undefined||Simbolo==null){
+            alert('No se encontro la clase '+NombreClase);
+            this.AgregarError('No se encontro la clase '+NombreClase)
+            return;
+        }
+        Ambito.push(NombreClase);
+        SizeClase = Simbolo.getSize();
+        Simbolo = EntornoPadre.getConstructor(Array.from(Ambito), this.Nombre,ValParametros);
+        if(Simbolo ==undefined||Simbolo==null){
+            alert('No se encontro el constructor para la clase '+NombreClase);
+            this.AgregarError('No se encontro el constructor para la clase '+NombreClase)
+            return;
+        }
+        let ValRetorno = new Object();
+        ValRetorno.TipoDato = Ambito[Ambito.length-1];
+        ValRetorno.Tipo = 'objeto';
+        ValRetorno.Texto = '';
+        for(let i = 0; i <ValParametros.length;i++){
+            if(ValParametros[i].TipoDato == 'booleano'&&ValParametros[i].Tipo=='valor'){
+                for(let j = 0;j<ValParametros[i].ListaVerdaderos.length;j++){
+                    ValParametros[i].Texto += '\n'+ValParametros[i].ListaVerdaderos[j]+':';
+                }
+                let NuevoTemporalValParametros = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+                ValParametros[i].Temporal = NuevoTemporalValParametros;
+                ValParametros[i].Texto+= '\n'+NuevoTemporalValParametros+' = 1;';
+                let NuevaEtiquetaSalidaValParametros = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+                ValParametros[i].Texto+= '\ngoto '+NuevaEtiquetaSalidaValParametros+';';
+                for(let j = 0;j<ValParametros[i].ListaFalsos.length;j++){
+                    ValParametros[i].Texto += '\n'+ValParametros[i].ListaFalsos[j]+':';
+                }            
+                ValParametros[i].Texto+= '\n'+NuevoTemporalValParametros+' = 0;';      
+                ValParametros[i].Texto+= '\n'+NuevaEtiquetaSalidaValParametros+':';
+            }
+            ValRetorno.Texto += ValParametros[i].Texto;
+        }
+        let TamañoMetodoActual = EntornoPadre.getMetodoActual().getSize();//Aqui tengo que obtener el tamaño del metodo en el que me encuentro actualmente
+        ValRetorno.Temporal = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+        let TemporalPosicionStack = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+        let TemporalPosicionHeap = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+        ValRetorno.Texto += '\n'+TemporalPosicionStack+' = P + '+TamañoMetodoActual+';';
+        ValRetorno.Texto += '\n'+TemporalPosicionHeap+' = H;';
+        ValRetorno.Texto += '\nH = H + '+(SizeClase+1)+';';
+        ValRetorno.Texto += '\nStack['+TemporalPosicionStack+'] = '+TemporalPosicionHeap+';';        
+        for(let i = 2; i <(ValParametros.length+2);i++){
+            ValRetorno.Texto += '\n'+TemporalPosicionStack+' = P + '+TamañoMetodoActual+';'
+            ValRetorno.Texto += '\n'+TemporalPosicionStack+' = '+TemporalPosicionStack+' + '+i+';';
+            ValRetorno.Texto += '\nStack['+TemporalPosicionStack+'] = '+ValParametros[i-2].Temporal+';';
+        }        
+        NombreClase = '';
+        for(let i = 0;i<Ambito.length;i++){
+            if(i==0){
+                NombreClase += Ambito[i];
+            }else{
+                NombreClase += '_'+Ambito[i];
+            }
+        }
+        let NombreParametros = '';
+        for(let i = 0;i <ValParametros.length;i++){
+            if(i==0){
+                NombreParametros += ValParametros[i].Tipo+'_'+ValParametros[i].TipoDato;
+            }else{
+                NombreParametros += '_'+ValParametros[i].Tipo+'_'+ValParametros[i].TipoDato;
+            }
+        }
+        let NombreMetodo3D = NombreClase+'_'+Ambito[Ambito.length-1]+'_'+NombreParametros;
+        ValRetorno.Texto += '\nP = P + '+TamañoMetodoActual+';';
+        ValRetorno.Texto += '\ncall '+NombreClase+';';
+        ValRetorno.Texto += '\ncall '+'Constructor_'+NombreMetodo3D+';';
+        ValRetorno.Texto += '\nP = P - '+TamañoMetodoActual+';';        
+        ValRetorno.Texto += '\n'+ValRetorno.Temporal +' = '+TemporalPosicionHeap+';';
+        return ValRetorno;
     };
     this.type = function(){
         return 'new_objeto';
@@ -3754,12 +4127,23 @@ function Variable_CAAS(x,linea) {
         let Ambito = EntornoPadre.getAmbito();
         let Simbolo =null;
         if(this.Nombre.length==1){
-            Simbolo = EntornoPadre.getSimboloVariable(Ambito,this.Nombre[0]);            
-        }else{
-            //Me falta recuperar cuando son arreglos
+            Simbolo = EntornoPadre.getSimboloVariable(Array.from(Ambito),this.Nombre[0]);
+        }else if(this.Nombre.length>1){
+            let i = 0;
+            if(this.Nombre[0]=='this'){
+                Simbolo = EntornoPadre.getSimboloThisVariable(Array.from(Ambito),this.Nombre[1]);
+                i = 2;
+            }else{
+                Simbolo = EntornoPadre.getSimboloVariable(Array.from(Ambito),this.Nombre[0]);
+                i = 1;
+            }
+            for(;i<this.Nombre.length;i++){
+                //Realizar busqueda de valor entre clases
+            }
         }
-        if(Simbolo==null){
-            this.AgregarError('No se encontro la variable '+this.Nombre);
+        if(Simbolo==null||Simbolo==undefined){
+            this.AgregarError('No se encontro la variable 1'+this.Nombre);
+            alert('2No se encontro la variable 1'+this.Nombre)
             return;
         }
         let ValRetorno = new Object();
@@ -3768,8 +4152,18 @@ function Variable_CAAS(x,linea) {
         let TemporalValorStack = 't'+EntornoPadre.Temporales.getNuevoTemporal();
         let TemporalPosicionStack = 't'+EntornoPadre.Temporales.getNuevoTemporal();
         ValRetorno.Texto = '';
-        ValRetorno.Texto += '\n'+TemporalPosicionStack+' = P + '+Simbolo.getPosicion()+';';
-        ValRetorno.Texto += '\n'+TemporalValorStack + ' = Stack['+TemporalPosicionStack+'];';        
+        if(Simbolo.getLocalizacion()=='Stack'){
+            ValRetorno.Texto += '\n'+TemporalPosicionStack+' = P + '+Simbolo.getPosicion()+';';
+            ValRetorno.Texto += '\n'+TemporalValorStack + ' = Stack['+TemporalPosicionStack+'];';        
+        }else if(Simbolo.getLocalizacion()=='Heap'){
+            let TemporalPosicionHeap = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+            ValRetorno.Texto += '\n'+TemporalPosicionStack+' = P + 0;';
+            ValRetorno.Texto += '\n'+TemporalPosicionHeap+' = Stack['+TemporalPosicionStack+'];';
+            ValRetorno.Texto += '\n'+TemporalPosicionHeap+' = '+TemporalPosicionHeap + ' + '+Simbolo.getPosicion()+';';
+            ValRetorno.Texto += '\n'+TemporalValorStack+' = Heap['+TemporalPosicionHeap+'];';
+        }else{
+            alert('2Error no se reconocio la localizacion'+Simbolo.getLocalizacion());
+        }
         if(ValRetorno.TipoDato=='booleano'&&ValRetorno.Tipo=='valor'){
             ValRetorno.Temporal = TemporalValorStack;
             ValRetorno.ListaVerdaderos = [];
@@ -3818,15 +4212,16 @@ function LlamadaFuncion_CAAS(x,y,linea) {
         for(let i=0;i<this.Parametros.length;i++){
             ValDimensiones.push(this.Parametros[i].Ejecutar(EntornoPadre));
         }
-        if(this.Nombre.length==1){//Se busca en la misma clase
-            Simbolo = EntornoPadre.getMetodo(EntornoPadre.Ambito, this.Nombre,ValDimensiones);
+        if(this.Nombre.length==1){//Se busca en la misma clase            
+            Simbolo = EntornoPadre.getMetodo(Array.from(EntornoPadre.getAmbito()), this.Nombre,ValDimensiones);
         }else{
-            
+            //Si no tengo que hacer otra cosa
         }
         if(Simbolo ==undefined||Simbolo==null){
+            alert('No se encontro metodo en ambito '+EntornoPadre.getAmbito()+", Nombre: "+this.Nombre+", Dimensiones: "+ValDimensiones);
             this.AgregarError('No se encontro el metodo '+this.Nombre)
             return;
-        }
+        }        
         let ValRetorno = new Object();
         ValRetorno.TipoDato = Simbolo.getTipoDato().TipoDato;
         ValRetorno.Tipo = Simbolo.getTipoDato().Tipo;
@@ -3849,17 +4244,34 @@ function LlamadaFuncion_CAAS(x,y,linea) {
             }
             ValRetorno.Texto += ValDimensiones[i].Texto;
         }
-        ValRetorno.Temporal = 't'+EntornoPadre.Temporales.getNuevoTemporal();        
-        for(let i = 0; i <ValDimensiones.length;i++){            
-            TemporalPosicionStack = 't'+EntornoPadre.Temporales.getNuevoTemporal();
-            ValRetorno.Texto += '\n'+TemporalPosicionStack+' = P + '+Simbolo.getSize()+';';
+        let TamañoMetodoActual = EntornoPadre.getMetodoActual().getSize();//Aqui tengo que obtener el tamaño del metodo en el que me encuentro actualmente
+        ValRetorno.Temporal = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+        let TemporalPosicionStack = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+        let TemporalPosicionHeap = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+        ValRetorno.Texto += '\n'+TemporalPosicionStack+' = P + 0;';
+        ValRetorno.Texto += '\n'+TemporalPosicionHeap+' = Stack['+TemporalPosicionStack+'];';
+        ValRetorno.Texto += '\n'+TemporalPosicionStack+' = P + '+TamañoMetodoActual+';'
+        ValRetorno.Texto += '\nStack['+TemporalPosicionStack+'] = '+TemporalPosicionHeap+';';
+        for(let i = 2; i <(ValDimensiones.length+2);i++){
+            ValRetorno.Texto += '\n'+TemporalPosicionStack+' = P + '+TamañoMetodoActual+';'
             ValRetorno.Texto += '\n'+TemporalPosicionStack+' = '+TemporalPosicionStack+' + '+i+';';
-            ValRetorno.Texto += '\nStack['+TemporalPosicionStack+'] = '+ValDimensiones[i].Temporal+';';
+            ValRetorno.Texto += '\nStack['+TemporalPosicionStack+'] = '+ValDimensiones[i-2].Temporal+';';
         }
-        ValRetorno.Texto += '\nP = P + '+Simbolo.getSize()+';';
-        ValRetorno.Texto += '\ncall '+Simbolo.getAmbito_Texto()+'_'+Simbolo.getIdentificador()+';';
-        ValRetorno.Texto += '\nP = P - '+Simbolo.getSize()+';';
-        //Tengo que agregar el return
+        let Parametros = '';
+        for(let i = 0;i<Simbolo.getParametros().length;i++){
+            if(i==0){
+                Parametros += Simbolo.getParametros()[i].Tipo.Tipo+'_'+Simbolo.getParametros()[i].Tipo.TipoDato;
+            }else{
+                Parametros += '_'+Simbolo.getParametros()[i].Tipo.Tipo+'_'+Simbolo.getParametros()[i].Tipo.TipoDato;
+            }
+        }
+        ValRetorno.Texto += '\nP = P + '+TamañoMetodoActual+';';
+        ValRetorno.Texto += '\ncall '+'Metodo_'+Simbolo.getAmbito_Texto()+'_'+Simbolo.getIdentificador()+'_'+Parametros+';';
+        ValRetorno.Texto += '\nP = P - '+TamañoMetodoActual+';';
+        //Obteniendo el valor de return
+        ValRetorno.Texto += '\n'+TemporalPosicionStack+' = P + 1;';
+        ValRetorno.Texto += '\n'+TemporalPosicionStack+' = P + '+TamañoMetodoActual+';'
+        ValRetorno.Texto += '\n'+ValRetorno.Temporal +' = Stack['+TemporalPosicionStack+'];';
         return ValRetorno;
     };
     this.type = function(){
@@ -3901,12 +4313,23 @@ function VariableArreglo_CAAS(x,y,linea) {
         let Ambito = EntornoPadre.getAmbito();
         let Simbolo =null;
         if(this.Nombre.length==1){
-            Simbolo = EntornoPadre.getSimboloVariableArreglo(Ambito,this.Nombre[0],this.Dimensiones.length);
-        }else{
-            
+            Simbolo = EntornoPadre.getSimboloVariableArreglo(Array.from(Ambito),this.Nombre[0],this.Dimensiones.length);
+        }else if(this.Nombre.length>1){
+            let i = 0;
+            if(this.Nombre[0]=='this'){
+                Simbolo = EntornoPadre.getSimboloThisVariableArreglo(Array.from(Ambito),this.Nombre[0],this.Dimensiones.length);
+                i = 2;
+            }else{
+                Simbolo = EntornoPadre.getSimboloVariableArreglo(Array.from(Ambito),this.Nombre[0],this.Dimensiones.length);
+                i = 1;
+            }
+            for(;i<this.Nombre.length;i++){
+                //Realizar busqueda de valor entre clases
+            }
         }
         if(Simbolo==null){
             this.AgregarError('No se encontro la variable '+this.Nombre);
+            alert('3No se encontro la variable 2 '+this.Nombre)
             return;
         }
         let TemporalPosicion = 't'+EntornoPadre.Temporales.getNuevoTemporal();
@@ -3920,8 +4343,18 @@ function VariableArreglo_CAAS(x,y,linea) {
         let EtiquetaSalto = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
         let EtiquetaSalida = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
         Texto = '';
-        Texto += '\n'+TemporalPosicionStack+' = P + '+Simbolo.getPosicion()+';';
-        Texto += '\n'+TemporalPosicion + ' = Stack['+TemporalPosicionStack+'];';
+        if(Simbolo.getLocalizacion()=='Stack'){
+            Texto += '\n'+TemporalPosicionStack+' = P + '+Simbolo.getPosicion()+';';
+            Texto += '\n'+TemporalPosicion + ' = Stack['+TemporalPosicionStack+'];';        
+        }else if(Simbolo.getLocalizacion()=='Heap'){
+            let TemporalPosicionHeap = 't'+EntornoPadre.Temporales.getNuevoTemporal();
+            Texto += '\n'+TemporalPosicionStack+' = P + 0;';
+            Texto += '\n'+TemporalPosicionHeap+' = Stack['+TemporalPosicionStack+'];';
+            Texto += '\n'+TemporalPosicionHeap+' = '+TemporalPosicionHeap + ' + '+Simbolo.getPosicion()+';';
+            Texto += '\n'+TemporalPosicion+' = Heap['+TemporalPosicionHeap+'];';
+        }else{
+            alert('5Error no se reconocio la localizacion '+Simbolo.getLocalizacion());
+        }
         Texto += '\n'+TemporalContador + ' = '+Simbolo.getDimensiones()+'+1;';
         for(let i = 0;i <Simbolo.getDimensiones();i++){
             Texto += '\n'+TemporalContador+' = '+TemporalContador +' - 1;';
@@ -4145,6 +4578,8 @@ function Simbolo_CAAS(id,Tipo,TipoDato,Size,Posicion,Ambito,Acceso,Estatico,fina
 function Entorno_CAAS(){
     this.Ambito = [];
     this.Localizacion = 'Heap';
+    this.MetodoActual;
+    this.EtiquetaSalidaMetodo;
     this.Nodos = [];
     this.Etiquetas = new Manejador_Etiquetas();
     this.Temporales = new Manejador_Temporales();
@@ -4183,7 +4618,55 @@ function Entorno_CAAS(){
         }
         return null;
     }
+    this.getSimboloThisVariable = function(Ambito,Identificador){
+        for(let i = 0;i<this.Nodos.length&&Ambito.length>0;i++){
+            if((this.Nodos[i].getTipo() =='variable'||this.Nodos[i].getTipo() =='arreglo')&&this.Nodos[i].getLocalizacion()=='Heap'){
+                if(Ambito.length == this.Nodos[i].getAmbito().length){
+                    let MismoAmbito = true;
+                    for(let j = 0;j<Ambito.length&&MismoAmbito;j++){
+                        if(Ambito[j] != this.Nodos[i].getAmbito()[j]){
+                            MismoAmbito = false;
+                        }
+                    }
+                    if(MismoAmbito){
+                        if(this.Nodos[i].getIdentificador()==Identificador){
+                            return this.Nodos[i];
+                        }          
+                    }
+                }
+            }
+            if((i+1)==this.Nodos.length){
+                Ambito.pop();
+                i=-1;
+            }
+        }
+        return null;
+    }
     this.getSimboloVariableArreglo = function(Ambito,Identificador,Dimensiones){
+        for(let i = 0;i<this.Nodos.length&&Ambito.length>0;i++){
+            if(this.Nodos[i].getTipo() =='arreglo'&&this.Nodos[i].getLocalizacion()=='Heap'){
+                if(Ambito.length == this.Nodos[i].getAmbito().length){
+                    let MismoAmbito = true;
+                    for(let j = 0;j<Ambito.length&&MismoAmbito;j++){
+                        if(Ambito[j] != this.Nodos[i].getAmbito()[j]){
+                            MismoAmbito = false;
+                        }
+                    }
+                    if(MismoAmbito){
+                        if(this.Nodos[i].getIdentificador()==Identificador&&this.Nodos[i].getDimensiones()==Dimensiones){
+                            return this.Nodos[i];
+                        }          
+                    }
+                }
+            }
+            if((i+1)==this.Nodos.length){
+                Ambito.pop();
+                i=-1;
+            }
+        }
+        return null;
+    }
+    this.getSimboloThisVariableArreglo = function(Ambito,Identificador,Dimensiones){
         for(let i = 0;i<this.Nodos.length&&Ambito.length>0;i++){
             if(this.Nodos[i].getTipo() =='arreglo'){
                 if(Ambito.length == this.Nodos[i].getAmbito().length){
@@ -4241,6 +4724,65 @@ function Entorno_CAAS(){
             }
         }
     }
+    this.getConstructor = function(Ambito,Identificador,ParametrosBuscados){
+        for(let i = 0;i<this.Nodos.length&&Ambito.length>0;i++){
+            if(this.Nodos[i].getTipo() =='constructor'){
+                if(Ambito.length == this.Nodos[i].getAmbito().length){
+                    let MismoAmbito = true;
+                    for(let j = 0;j<Ambito.length&&MismoAmbito;j++){
+                        if(Ambito[j] != this.Nodos[i].getAmbito()[j]){
+                            MismoAmbito = false;
+                        }
+                    }
+                    if(MismoAmbito){
+                        if(this.Nodos[i].getIdentificador()==Identificador){
+                            let ParametrosMetodo = this.Nodos[i].getParametros();
+                            let MismosParametros = true;
+                            if(ParametrosBuscados.length == ParametrosMetodo.length){
+                                for(let j = 0; j <ParametrosBuscados.length&&MismosParametros;j++){
+                                    if(ParametrosBuscados[j].Tipo != ParametrosMetodo[j].Tipo.Tipo || ParametrosBuscados[j].TipoDato != ParametrosMetodo[j].Tipo.TipoDato){
+                                        MismosParametros = false;
+                                    }
+                                }                                
+                                if(MismosParametros){
+                                    return this.Nodos[i];
+                                }
+                            }
+                        }          
+                    }
+                }
+            }
+            if((i+1)==this.Nodos.length){
+                Ambito.pop();
+                i=-1;
+            }
+        }
+    }
+    this.getClase = function(Ambito,Identificador){
+        let i = 0;
+        do{
+            if(this.Nodos[i].getTipo() =='clase'){
+                if(Ambito.length == this.Nodos[i].getAmbito().length){
+                    let MismoAmbito = true;
+                    for(let j = 0;j<Ambito.length&&MismoAmbito;j++){
+                        if(Ambito[j] != this.Nodos[i].getAmbito()[j]){
+                            MismoAmbito = false;
+                        }
+                    }
+                    if(MismoAmbito){
+                        if(this.Nodos[i].getIdentificador()==Identificador){
+                            return this.Nodos[i];
+                        }          
+                    }
+                }
+            }
+            if((i+1)==this.Nodos.length){
+                Ambito.pop();
+                i=-1;
+            }
+            i++;
+        }while(i<this.Nodos.length&&this.Nodos.length>0);
+    }
     this.setAmbito = function(Ambito){
         this.Ambito = Ambito;
     }
@@ -4252,6 +4794,18 @@ function Entorno_CAAS(){
     }
     this.getLocalizacion = function(){
         return this.Localizacion;
+    }
+    this.setMetodoActual=function(Metodo){
+        this.MetodoActual = Metodo;
+    }
+    this.getMetodoActual = function(){
+        return this.MetodoActual;
+    }
+    this.setEtiquetaSalidaMetodo = function(Etiqueta){
+        this.EtiquetaSalidaMetodo = Etiqueta;
+    }
+    this.getEtiquetaSalidaMetodo = function(){
+        return this.EtiquetaSalidaMetodo;
     }
 }
 
@@ -4270,266 +4824,3 @@ function Manejador_Etiquetas(){
         return this.Numero;
     }
 }
-
-
-///CALCULO DE LA POSICION EN UN ARREGLO
-
-/*
-    this.setValorArreglo = function(valor, indices){
-        //Debo ver de que tipo es el valor y si es el mismo que el arreglo
-        let posicion = 0;
-        let tamdimension = 0;
-        let error = false;
-        //VIENDOLO COMO VECTOR DE COLUMNAS CONSECUTIVAS
-        //Formula usada es:
-        //arr[a][b]=a+b*tam1
-        //arr[a][b][c]=a+b*tam1+c*tam1*tam2
-        //arr[a][b][c][d]=a+b*tam1+c*tam1*tam2+d*tam1*tam2*tam3
-        if(indices.length!=this.Dimensiones.length){
-            error=true;
-            this.AgregarError('Esta tratando de ingresar a un indice que no existe');
-        }        
-        for(let i = 0;(i<indices.length)&&!error;i++){
-            if(indices[i]>(this.Dimensiones[i]-1)){
-                error = true;  
-                break;              
-            }
-            if(i = 0){
-                posicion = indices[i];
-                tamdimension = this.Dimension[i];
-            }else{
-                posicion = posicion + indices[i]*tamdimension;
-                tamdimension = tamdimension * this.Dimension[i];
-            }
-        }
-        this.ListaValores[posicion]=valor;
-    }
-    this.getValorArreglo=function(indices){
-        let posicion = 0;
-        let tamdimension = 0;
-        let error = false;
-        //VIENDOLO COMO VECTOR DE COLUMNAS CONSECUTIVAS
-        //Formula usada es:
-        //arr[a][b]=a+b*tam1
-        //arr[a][b][c]=a+b*tam1+c*tam1*tam2
-        //arr[a][b][c][d]=a+b*tam1+c*tam1*tam2+d*tam1*tam2*tam3
-        if(indices.length!=this.Dimensiones.length){
-            error=true;
-            this.AgregarError('Esta tratando de ingresar a un indice que no existe');
-        }
-        for(let i = 0;(i<indices.length)&&!error;i++){
-            if(indices[i]>(this.Dimensiones[i]-1)){
-                error = true;  
-                break;              
-            }
-            if(i = 0){
-                posicion = indices[i];
-                tamdimension = this.Dimension[i];
-            }else{
-                posicion = posicion + indices[i]*tamdimension;
-                tamdimension = tamdimension * this.Dimension[i];
-            }
-        }
-        if(error){
-            return;
-        }
-        return this.ListaValores[posicion];
-    }
-    */
-
-
-    /// LO QUE QUITE DE ENTORNO
-
-    /*this.TablaPadre = entornopadre;
-    this.NivelDetener = 0;
-    this.NivelRetornar = 0;
-    this.ValorRetorno = null;
-    this.Inicializar=function(){
-        if(this.TablaPadre ==null){
-            this.NivelDetener =0;
-            this.NivelRetornar = 0;
-        }else{
-            this.NivelDetener = this.TablaPadre.NivelDetener;
-            this.NivelRetornar = this.TablaPadre.NivelRetornar;
-        }
-    }
-    this.getEntornoGlobal=function(){
-        if(this.TablaPadre!=null){
-            return this.TablaPadre.getEntornoGlobal();
-        }
-        return this;
-    }
-    this.AgregarVariable = function(Identificador,TipoDato){
-        let simbolo = new Simbolo_CAAS(Identificador,'variable',TipoDato);
-        this.Nodos.push(simbolo);
-    }
-    this.AgregarArreglo = function(Identificador,TipoDato){
-        let simbolo = new Simbolo_CAAS(Identificador,'arreglo',TipoDato);
-        this.Nodos.push(simbolo);
-    }
-    this.AgregarFuncion = function(Identificador,TipoDato,Funcion){
-        let simbolo = new Simbolo_CAAS(Identificador,'funcion',TipoDato);
-        simbolo.setFuncion(Funcion);
-        this.Nodos.push(simbolo);
-    }
-    this.VariableExiste=function(Identificador){
-        for(let i =0;i<this.Nodos.length;i++){
-            if(this.Nodos[i].getIdentificador()==Identificador&&this.Nodos[i].getTipoSimbolo()=='variable'){
-                return true;
-            }
-        }
-        if(this.TablaPadre!=null){
-            return this.TablaPadre.VariableExiste(Identificador);
-        }
-        return false;
-    }
-    this.FuncionExiste = function(Identificador){
-        for(let i =0;i<this.Nodos.length;i++){
-            if(this.Nodos[i].getIdentificador()==Identificador&&this.Nodos[i].getTipoSimbolo()=='funcion'){
-                return true;
-            }
-        }
-        if(this.TablaPadre!=null){
-            return this.TablaPadre.FuncionExiste(Identificador);
-        }
-        return false;
-    }
-    this.ArregloExiste = function(Identificador){
-        for(let i =0;i<this.Nodos.length;i++){
-            if(this.Nodos[i].getIdentificador()==Identificador&&this.Nodos[i].getTipoSimbolo()=='arreglo'){
-                return true;
-            }
-        }
-        if(this.TablaPadre!=null){
-            return this.TablaPadre.ArregloExiste(Identificador);
-        }
-        return false;
-    }
-    this.SimboloExiste = function(Identificador){
-        for(let i =0;i<this.Nodos.length;i++){
-            if(this.Nodos[i].getIdentificador()==Identificador&&(this.Nodos[i].getTipoSimbolo()=='arreglo'||this.Nodos[i].getTipoSimbolo()=='variable')){
-                return true;
-            }
-        }
-        if(this.TablaPadre!=null){
-            return this.TablaPadre.SimboloExiste(Identificador);
-        }
-        return false;
-    }
-    this.SimboloExisteEntorno=function(){
-        for(let i =0;i<this.Nodos.length;i++){
-            if(this.Nodos[i].getIdentificador()==Identificador&&(this.Nodos[i].getTipoSimbolo()=='arreglo'||this.Nodos[i].getTipoSimbolo()=='variable')){
-                return true;
-            }
-        }
-    }
-    this.getValorVariable=function(Identificador){
-        for(let i =0;i<this.Nodos.length;i++){
-            if(this.Nodos[i].getIdentificador()==Identificador&&this.Nodos[i].getTipoSimbolo()=='variable'){
-                return this.Nodos[i].getValor();
-            }
-        }
-        if(this.TablaPadre!=null){
-            return this.TablaPadre.getValorVariable(Identificador);
-        }
-        return undefined;
-    }
-    this.getValorArreglo=function(Identificador,Indices){
-        for(let i =0;i<this.Nodos.length;i++){
-            if(this.Nodos[i].getIdentificador()==Identificador&&this.Nodos[i].getTipoSimbolo()=='arreglo'){
-                return this.Nodos[i].getValorArreglo(Indices);
-            }
-        }
-        if(this.TablaPadre!=null){
-            return this.TablaPadre.getValorArreglo(Identificador,Indices);
-        }
-        return undefined;
-    }
-    this.getArreglo = function(Identificador){
-        for(let i =0;i<this.Nodos.length;i++){
-            if(this.Nodos[i].getIdentificador()==Identificador&&this.Nodos[i].getTipoSimbolo()=='arreglo'){
-                return this.Nodos[i].getArreglo();
-            }
-        }
-        if(this.TablaPadre!=null){
-            return this.TablaPadre.getArreglo(Identificador);
-        }
-        return undefined;
-    }
-    this.getFuncion = function(Identificador){
-        for(let i =0;i<this.Nodos.length;i++){
-            if(this.Nodos[i].getIdentificador()==Identificador&&this.Nodos[i].getTipoSimbolo()=='funcion'){
-                return this.Nodos[i].getFuncion();
-            }
-        }
-        if(this.TablaPadre!=null){
-            return this.TablaPadre.getFuncion(Identificador);
-        }
-        return undefined;
-    }
-    this.setValor = function(Identificador,valor){
-        for(let i =0;i<this.Nodos.length;i++){
-            if(this.Nodos[i].getIdentificador()==Identificador&&this.Nodos[i].getTipoSimbolo()=='variable'){
-                this.Nodos[i].setValor(valor);
-                return;
-            }
-        }
-        if(this.TablaPadre!=null){
-            this.TablaPadre.setValor(Identificador,valor);
-            return;
-        }
-        return;
-    }
-    this.setValorArreglo = function(Identificador,Indices, Valor){
-        for(let i =0;i<this.Nodos.length;i++){
-            if(this.Nodos[i].getIdentificador()==Identificador&&this.Nodos[i].getTipoSimbolo()=='arreglo'){
-                this.Nodos[i].setValorArreglo(Valor,Indices);
-                return;
-            }
-        }
-        if(this.TablaPadre!=null){
-            this.TablaPadre.setValorArreglo(Identificador,Indices,Valor);
-            return;
-        }
-        return;
-    }
-    this.setArreglo = function(Identificador, ListaValores,Dimensiones){
-        for(let i =0;i<this.Nodos.length;i++){
-            if(this.Nodos[i].getIdentificador()==Identificador&&this.Nodos[i].getTipoSimbolo()=='arreglo'){
-                this.Nodos[i].setArreglo(Valor);
-                return;
-            }
-        }
-        if(this.TablaPadre!=null){
-            this.TablaPadre.setArreglo(Identificador,Valor);
-            return;
-        }
-        return;
-    }
-    this.getSizeSimbolo=function(Identificador){
-        for(let i =0;i<this.Nodos.length;i++){
-            if(this.Nodos[i].getIdentificador()==Identificador&&(this.Nodos[i].getTipoSimbolo()=='variable'||this.Nodos[i].getTipoSimbolo()=='arreglo')){
-                return this.Nodos[i].getSize();
-            }
-        }
-        if(this.TablaPadre!=null){
-            return this.TablaPadre.getSizeSimbolo(Identificador);
-        }
-    }
-    this.SimboloInicializado = function(Identificador){
-        for(let i =0;i<this.Nodos.length;i++){
-            if(this.Nodos[i].getIdentificador()==Identificador&&(this.Nodos[i].getTipoSimbolo()=='variable'||this.Nodos[i].getTipoSimbolo()=='arreglo')){
-                return this.Nodos[i].isValorInicializado();
-            }
-        }
-        if(this.TablaPadre!=null){
-            return this.TablaPadre.SimboloInicializado(Identificador);
-        }
-    }
-    this.Errores = new Errores3D();
-    this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Entorno',-1);
-    };
-    this.RecuperarErrores = function(ErroresPadre){
-        ErroresPadre.AgregarErrores(this.Errores);
-    };*/
