@@ -15,7 +15,7 @@ BooleanoV     "true"
 BooleanoF     "false"
 Cadena        [\"\“\”][^\"\“\”]*[\"\“\”]
 
-Identificador [A-Za-z_][A-Za-z_0-9]*
+Identificador [A-Za-z_\ñ\Ñ][A-Za-z_0-9\ñ\Ñ]*
 
 comentariounilinea "/""/".*(\r|\n|\r\n)
 comentariomultilinea \/\*.*?\*\/
@@ -91,9 +91,10 @@ comentariomultilinea \/\*.*?\*\/
 "abstract " {return 'abstract'}
 "static" {return 'static'}
 "final" {return 'final'}
+"@override" {return 'override'}
 
 //Instrucciones
-"break "    {return 'break '}
+"break"    {return 'break'}
 "case"      {return 'case'}
 "catch"     {return 'catch'}
 "class"     {return 'class'}
@@ -222,10 +223,11 @@ INSTRUCCIONESCLASE
     ;
 
 INSTRUCCIONCLASE
-    : DECLARACIONVARIABLE ';'   { $$ = $1; }
-    | DECLARACIONMETODO         { $$ = $1; }
-    | DECLARACIONCLASE          { $$ = $1; }
-    | DECLARACIONCONSTRUCTOR    { $$ = $1; }
+    : DECLARACIONVARIABLE ';'    { $$ = $1; }
+    | DECLARACIONMETODO          { $$ = $1; }
+    | override DECLARACIONMETODO { $$ = $2; }
+    | DECLARACIONCLASE           { $$ = $1; }
+    | DECLARACIONCONSTRUCTOR     { $$ = $1; }
     ;
 
 BLOQUEINSTRUCCIONES
@@ -264,7 +266,7 @@ SENTENCIAIMPRIMIR
     ;
 
 SENTENCIAFOREACH
-    : for '(' PARAMETRO ':' E ')' BLOQUEINSTRUCCIONES {$$ = new ForEach_CAAS($3,$5, $7,yylineno);}
+    : for '(' DECLARACIONVARIABLE ':' E ')' BLOQUEINSTRUCCIONES {$$ = new ForEach_CAAS($3,$5, $7,yylineno);}
     ;
 
 SENTENCIAFOR  
@@ -293,12 +295,12 @@ SENTENCIATHROW
     ;
 
 SENTENCIASWITCH
-    : switch EXPARENTESIS BLOQUESWITCH  { $$ = new Switch_CAAS($2,$3,yylineno); }
+    : switch EXPARENTESIS BLOQUESWITCH  {$$ = new Switch_CAAS($2,$3,yylineno); }
     ;
 
 BLOQUESWITCH
-    : '{' LISTACASOS LISTAETIQUETAS '}'   {$$ = $1; temporalCAAS = new CasosInstruccion_CAAS($3,[],yylineno); $$.push(temporalCAAS); }
-    | '{' LISTACASOS '}'                  {$$ = $1;}
+    : '{' LISTACASOS LISTAETIQUETAS '}'   {$$ = $2; temporalCAAS = new CasosInstruccion_CAAS($3,[],yylineno); $$.push(temporalCAAS); }
+    | '{' LISTACASOS '}'                  {$$ = $2;}
     | '{' LISTAETIQUETAS '}'              {$$ = []; temporalCAAS = new CasosInstruccion_CAAS($2,[],yylineno); $$.push(temporalCAAS);}
     | '{' '}'                             {$$ = [];}
     ;
@@ -531,10 +533,11 @@ VALOR
     | valverdadero      {$$ = new Valor_CAAS('booleano',1,yylineno);}
     | valfalso          {$$ = new Valor_CAAS('booleano',0,yylineno);}
     | valcadena         {$$ = new Valor_CAAS('cadena',yytext,yylineno);}
-    | nulo              {$$ = new Valor_CAAS('nulo',null,yylineno);}
+    | nulo              {$$ = new Valor_CAAS('nulo',-1,yylineno);}
     | VARIABLE          {$$ = new Variable_CAAS($1.Identificador,yylineno); }//falta
     | LLAMADAFUNCION    {$$ = $1; }
     | ARREGLO           {$$ = $1; }
+    | VARIABLEARREGLOVARIABLE {$$ = new VariableArreglo_Variable_Caas($1.Identificador, $1.Dimensiones,yylineno);}
     ;
 
 LLAMADAFUNCION
@@ -544,7 +547,11 @@ LLAMADAFUNCION
 ARREGLO
     : '[' LISTAVALORESOPCIONAL ']' {$$ = new ListaValores_CAAS($2,yylineno); }
     | '{' LISTAVALORESOPCIONAL '}' {$$ = new ListaValores_CAAS($2,yylineno); }
-    | VARIABLEARREGLO  {$$ = new VariableArreglo_CAAS($1.Identificador, $1.Dimensiones,yylineno);}  
+    | VARIABLEARREGLO  {$$ = new VariableArreglo_CAAS($1.Identificador, $1.Dimensiones,yylineno);}
+    ;
+
+VARIABLEARREGLOVARIABLE
+    : VARIABLEARREGLO '.' identificador {$$=$1; $$.Identificador.push($3);}
     ;
 
 VARIABLEARREGLO
