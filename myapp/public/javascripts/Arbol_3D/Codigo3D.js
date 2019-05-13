@@ -695,10 +695,8 @@ function Errores3D(){
             this.Tabla.push(NuevoError);//Cuando quiero construir el error
         }
     };
-    this.AgregarErrores= function(ListaErrores){        
-        for(var i=0;i<ListaErrores.getCantidadErrores();i++){
-            this.abla.push(ListaErrores.getError(i));
-        }            
+    this.AgregarErrores= function(ListaErrores){
+        this.Tabla = this.Tabla.concat(ListaErrores.Tabla);
     };
     this.getCantidadErrores= function(){
         return this.Tabla.length;
@@ -707,6 +705,12 @@ function Errores3D(){
         return this.Tabla[i];
     };
     this.MostrarError = function(){
-        //Aqui tengo que generar el reporte de errores
+        let Texto = '';
+        for(let i = 0;i<this.Tabla.length;i++){
+            Texto += '\nFila: '+this.Tabla[i].getFila()+',  Tipo: '+this.Tabla[i].getTipo()+',  Clase: '+this.Tabla[i].getClase()+',  Descripcion: '+this.Tabla[i].getDescripcion();
+        }
+        alert('Errores es:\n'+Texto);
+        return Texto;
     };
+
 }

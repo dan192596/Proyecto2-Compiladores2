@@ -10,7 +10,7 @@
 
 Numero        [0-9]+
 NumeroDecimal [0-9]+"."[0-9]+
-Caracter      [\'\‘].[\'\’]
+Caracter      [\'\‘\’].[\'\’\‘]
 BooleanoV     "true"
 BooleanoF     "false"
 Cadena        [\"\“\”][^\"\“\”]*[\"\“\”]
@@ -198,7 +198,7 @@ CONTENIDOARCHIVO
     ;
 
 IMPORTACION
-    : import E ';'  { $$ = new Importacion_CAAS($2,yylineno);}
+    : import valcadena ';'  { $$ = new Importacion_CAAS($2,yylineno);}
     ;
 
 // ###################################
@@ -337,9 +337,9 @@ ASIGNACIONVARIABLE
 
 DECLARACIONVARIABLE
     : MODIFICADORES TIPO LISTADECLARACIONVARIABLES          {$$ = new DeclaracionVariable_CAAS($1,$2,$3,yylineno); }
-    | MODIFICADORES VARIABLE LISTADECLARACIONVARIABLES      {temporalCAAS =new Object(); temporalCAAS.TipoDato=$1.Identificador;temporalCAAS.Tipo='objeto';$$ = new DeclaracionVariable_CAAS($1,temporalCAAS,$3,yylineno);}
+    | MODIFICADORES VARIABLE LISTADECLARACIONVARIABLES      {$$ = new DeclaracionVariable_CAAS($1,$2,$3,yylineno);}
     | TIPO LISTADECLARACIONVARIABLES                        {$$ = new DeclaracionVariable_CAAS([],$1,$2,yylineno); }
-    | VARIABLE LISTADECLARACIONVARIABLES                    {temporalCAAS =new Object(); temporalCAAS.TipoDato=$1.Identificador;temporalCAAS.Tipo='objeto'; $$ = new DeclaracionVariable_CAAS([],temporalCAAS,$2,yylineno);}
+    | VARIABLE LISTADECLARACIONVARIABLES                    {$$ = new DeclaracionVariable_CAAS([],$1,$2,yylineno);}
     | DECLARACIONVARIABLELINKEDLIST {$$ = $1;}
     ;
 
@@ -409,8 +409,8 @@ SUBDECLARACIONVARIABLE
     ;
 
 MODIFICADORES
-    : MODIFICADORES MODIFICADOR {$$ = $1; $$.push($1); }
-    | MODIFICADOR   {$$ = []; $$.push($1.tolo);}
+    : MODIFICADORES MODIFICADOR {$$ = $1; $$.push($2); }
+    | MODIFICADOR   {$$ = []; $$.push($1);}
     ;
 
 MODIFICADOR
@@ -496,7 +496,7 @@ RELACIONAL
     | E '<=' E  {$$ = new Relacional_CAAS($1,$3,'<=',yylineno); }
     | E '<' E   {$$ = new Relacional_CAAS($1,$3,'<',yylineno); }
     | E 'instanceof' TIPO       {$$ = new Instanceof_CAAS($1,$3,yylineno);}
-    | E 'instanceof' VARIABLE   {$3.TipoDato = $3.Identificador; $$ = new Instanceof_CAAS($1,$3,yylineno);}//falta
+    | E 'instanceof' VARIABLE   {$$ = new Instanceof_CAAS($1,$3,yylineno);}//falta
     ;
 
 TIPO
@@ -560,11 +560,11 @@ VARIABLEARREGLO
     ;
 
 VARIABLE 
-    : VARIABLE '.' super            {$$ = $1; $$.Identificador.push('super'); }//falta
-    | VARIABLE '.' identificador    {$$ = $1; $$.Identificador.push($3); }//falta
-    | identificador                 {$$ = new Object(); $$.Identificador = []; $$.Identificador.push($1); $$.Tipo='objeto'; }
-    | super                         {$$ = new Object(); $$.Identificador = []; $$.Identificador.push('super'); $$.Tipo='objeto'; }
-    | this                          {$$ = new Object(); $$.Identificador = []; $$.Identificador.push('this'); $$.Tipo='objeto'; }
+    : VARIABLE '.' super            {$$ = $1; $$.Identificador.push('super'); $$.TipoDato = $$.Identificador[$$.Identificador.length-1];}
+    | VARIABLE '.' identificador    {$$ = $1; $$.Identificador.push($3); $$.TipoDato = $$.Identificador[$$.Identificador.length-1];}
+    | identificador                 {$$ = new Object(); $$.Identificador = []; $$.Identificador.push($1); $$.Tipo='objeto';      $$.TipoDato = $$.Identificador[$$.Identificador.length-1]; }
+    | super                         {$$ = new Object(); $$.Identificador = []; $$.Identificador.push('super'); $$.Tipo='objeto'; $$.TipoDato = $$.Identificador[$$.Identificador.length-1]; }
+    | this                          {$$ = new Object(); $$.Identificador = []; $$.Identificador.push('this'); $$.Tipo='objeto';  $$.TipoDato = $$.Identificador[$$.Identificador.length-1];}
     ;
 
 LISTAVALORESOPCIONAL

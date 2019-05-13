@@ -1,27 +1,34 @@
 //######################
 //## BLOQUE PRINCIPAL ## 
 //######################
-function BloquePrincipal_CAAS(x,linea){
-    this.Linea = linea;
+function BloquePrincipal_CAAS(x,Linea){
+    this.Linea = Linea;
     this.Instrucciones = x;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Hilo principal',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Hilo principal',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
-        for(let i = 0;i <Instrucciones.length;i++){
+        for(let i = 0;i <this.Instrucciones.length;i++){
             this.Instrucciones[i].RecuperarErrores(ErroresPadre);
         }
     };
     this.Ejecutar = function(EntornoPadre){
+//IMPORTACION Primero recupero todas las clases de las ventanas abiertas y luego junto con las clases que ya tengo
+        let ListaArchivosImportados = [];
+        for(let i = 0;i<this.Instrucciones.length;i++){
+            if(this.Instrucciones[i].type()=='importacion'){
+                this.Instrucciones = this.Instrucciones.concat(this.Instrucciones[i].Ejecutar(ListaArchivosImportados));
+            }
+        }
+//DECLARACION DE CLASE
         let Texto = '';
         Texto += 'P = 0;'
         Texto += '\nH = 0;'
         let Ambito = [];
         let Repito = false;
         let Contador =  0;
-//DECLARACION DE CLASE
         for(let i = 0;i <this.Instrucciones.length&&Contador<100;i++){
             if(this.Instrucciones[i].type()=='declaracion_clase'){
                 Ambito = [];
@@ -45,10 +52,11 @@ function BloquePrincipal_CAAS(x,linea){
         }
 //Realizacion de metodos y clases
         for(let i = 0;i <this.Instrucciones.length;i++){
-            Ambito = [];
-            Texto += this.Instrucciones[i].Ejecutar(EntornoPadre,Ambito);
+            if(this.Instrucciones[i].type()=='declaracion_clase'){
+                Ambito = [];
+                Texto += this.Instrucciones[i].Ejecutar(EntornoPadre,Ambito);
+            }
         }
-        EntornoPadre.VerTabla();
         Texto += '\n\n\n'
         Texto += '//### LLAMADA A METODO MAIN ###'
         Texto += '\nHeap[0] = 0;//Guardo la posicion en heap de la clase main'        
@@ -58,7 +66,13 @@ function BloquePrincipal_CAAS(x,linea){
         Texto += '\ncall main;'        
         Texto += '\ncall Metodo_main_main_;'
         //Texto += '\nH = P - 1;'
-        consola_201404268.setValue(Texto);
+        consola_201404268.setValue(Texto+'\n\n'+EntornoPadre.VerTablaTexto());
+        let Errores = new Errores3D();
+        this.RecuperarErrores(Errores);
+        errores_201404268.setValue(Errores.MostrarError());
+    };
+    this.Importar=function(ListaArchivosImportados){    
+        return this.Instrucciones;
     };
     this.type = function(){
         return 'bloque_principal';
@@ -67,24 +81,50 @@ function BloquePrincipal_CAAS(x,linea){
 //#################
 //## IMPORTACION ## 
 //#################
-function Importacion_CAAS(x,linea){
-    this.Linea = linea;
+function Importacion_CAAS(x,Linea){
+    this.Linea = Linea;
     this.Ruta = x;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Importacion',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Importacion',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
-        Ruta.RecuperarErrores(ErroresPadre);
     };
-    this.Ejecutar = function(EntornoPadre){
-        let ValRuta = this.Ruta.Ejecutar(EntornoPadre);
-        if(!(ValRuta instanceof String)){
-            this.AgregarError('Se debe recibir un valor de tipo cadena');
-            return;
+    this.Ejecutar = function(ListaArchivosImportados){
+    //Encuentro el nombre del archivo a importar
+        this.Ruta = this.Ruta.substring(1,this.Ruta.length-1);
+        this.Ruta = this.Ruta.split('.')[0].replace(/\s/g,'');
+    //Reviso si ya se importo ese archivo
+        for(let i = 0;i<ListaArchivosImportados.length;i++){
+            if(ListaArchivosImportados[i]==this.Ruta){
+                return [];
+            }
         }
-        //Realizar proceso de importacion
+    //Reviso si se encuentra entre las pestañas abiertas
+        let editorImportar=null;
+        for(let i = 0;i<ListaEditor.length;i++){
+            if(ListaEditor[i]['nombre']==this.Ruta){
+                ListaArchivosImportados.push(this.Ruta);
+                editorImportar = ListaEditor[i]['editor'];
+                break;
+            }
+        }
+        if(editorImportar ==null){
+            this.AgregarError('Archivo '+this.Ruta+' no encontrado');
+            return [];
+        }
+    //Mando a traer las clases que fueron importadas
+        let texto = editorImportar.getValue('\n');
+        try {
+            let respuesta = parserCAAS.parse(String(texto+"\n"));//Analisis del texto obtenido            
+            //#####  Importacion de clases ######             
+            return respuesta.Importar(ListaArchivosImportados);
+            //#########################
+        } catch (error) {
+            this.AgregarError('Error al analizar un archivo: '+error);
+            return [];
+        }
     };
     this.type = function(){
         return 'importacion';
@@ -93,8 +133,8 @@ function Importacion_CAAS(x,linea){
 //##########################
 //## DECLARACION DE CLASE ## 
 //##########################
-function DeclaracionClase_CAAS(x,y,z,i,extiende,linea){
-    this.Linea = linea;
+function DeclaracionClase_CAAS(x,y,z,i,extiende,Linea){
+    this.Linea = Linea;
     this.Modificadores = x;
     this.Nombre = y;
     this.Hereda = z;
@@ -102,10 +142,11 @@ function DeclaracionClase_CAAS(x,y,z,i,extiende,linea){
     this.Extiende = extiende;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Declaracion de clase',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Declaracion de clase',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
+        this.BloqueInstrucciones.RecuperarErrores(ErroresPadre);
     };
     this.Ejecutar = function(EntornoPadre,Ambito){
             if(this.Hereda){
@@ -152,7 +193,7 @@ function DeclaracionClase_CAAS(x,y,z,i,extiende,linea){
                 case 'final':if(final){this.AgregarError('Modificador final ya utilizado en declaracion');}final = true;break;
                 case 'abstract':if(abstract){this.AgregarError('Modificador abstract ya utilizado en declaracion');}abstract = true;break;
                 default:
-                    this.AgregarError('Modificador no permitido para declaracion de una clase');
+                    this.AgregarError('Modificador ' +this.Modificadores[i]+' no permitido para declaracion de una clase');
             }
         }
         if(Visibilidad==''){
@@ -179,17 +220,17 @@ function DeclaracionClase_CAAS(x,y,z,i,extiende,linea){
 //################################
 //## BLOQUE INSTRUCCIONES CLASE ## 
 //################################
-function BloqueInstruccionesClase_CAAS(x,linea){
-    this.Linea = linea;
+function BloqueInstruccionesClase_CAAS(x,Linea){
+    this.Linea = Linea;
     this.Instrucciones = x;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Bloque instrucciones de clase',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Bloque instrucciones de clase',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){        
         ErroresPadre.AgregarErrores(this.Errores);
         for(let i =0;i<this.Instrucciones.length;i++){
-            this.Instrucciones[i].RecuperarErrores(EntornoPadre);
+            this.Instrucciones[i].RecuperarErrores(ErroresPadre);
         }
     };
     this.Ejecutar = function(EntornoPadre,Ambito,PrimeraPasada){
@@ -199,6 +240,32 @@ function BloqueInstruccionesClase_CAAS(x,linea){
             let SimboloTemporal = EntornoPadre.getClase(Ambito[Ambito.length-2]);//this.Extiende es el nombre de la clase a buscar
             PosicionRelativaStack = SimboloTemporal.getSize();
         }
+//Prueba //////////////////////////////////////////////////////
+        let TextoDeclaracionesClase = '';        
+        let ValValorTemporal;        
+        EntornoPadre.setLocalizacion('Heap');
+//DECLARO TODAS LAS VARIABLES DE LA CLASE
+        for(let i = 0; i <this.Instrucciones.length; i ++){
+            if(this.Instrucciones[i].type()=='declaracion_variable'){
+                ValValorTemporal = this.Instrucciones[i].Ejecutar(EntornoPadre,PosicionRelativaStack,Ambito,PrimeraPasada);
+                PosicionRelativaStack = ValValorTemporal.PosicionRelativaStack;
+                TextoDeclaracionesClase += ValValorTemporal.Texto;
+            }
+        }
+//TRADUCCION DE LA DECLARACION DE LA CLASE A 3D
+        let NombreAmbito = '';
+        for(let i = 0;i<Ambito.length;i++){
+            if(i == 0){
+                NombreAmbito += Ambito[i];
+            }else{
+                NombreAmbito += '_'+Ambito[i];
+            }
+        }
+        TextoDeclaracionesClase = TextoDeclaracionesClase.replace(/\n/g,"\n\t");
+        TextoDeclaracionesClase = '\nproc '+NombreAmbito+' begin '+TextoDeclaracionesClase+ '\nend';
+        Texto += '\n//Declaracion de la clase '+NombreAmbito;
+        Texto += TextoDeclaracionesClase;
+
         EntornoPadre.setLocalizacion('Stack');
 //RECONOCER LOS METODOS Y CONSTRUCTORES
         let PoseeConstructorBasico = false;
@@ -230,8 +297,6 @@ function BloqueInstruccionesClase_CAAS(x,linea){
     this.DeclaracionVariablesClase = function(EntornoPadre,Ambito,PrimeraPasada){
         let PosicionRelativaStack = 0;
         let Texto = '';
-        let TextoDeclaracionesClase = '';        
-        let ValValorTemporal;
         if(Ambito.length > 1){
             let SimboloTemporal = EntornoPadre.getClase(Ambito[Ambito.length-2]);//this.Extiende es el nombre de la clase a buscar
             PosicionRelativaStack = SimboloTemporal.getSize();
@@ -240,24 +305,11 @@ function BloqueInstruccionesClase_CAAS(x,linea){
 //DECLARO TODAS LAS VARIABLES DE LA CLASE
         for(let i = 0; i <this.Instrucciones.length; i ++){
             if(this.Instrucciones[i].type()=='declaracion_variable'){
-                ValValorTemporal = this.Instrucciones[i].Ejecutar(EntornoPadre,PosicionRelativaStack,Ambito,PrimeraPasada);
+                let ValValorTemporal = this.Instrucciones[i].Ejecutar(EntornoPadre,PosicionRelativaStack,Ambito,PrimeraPasada);
                 PosicionRelativaStack = ValValorTemporal.PosicionRelativaStack;
-                TextoDeclaracionesClase += ValValorTemporal.Texto;
             }
         }
 //TRADUCCION DE LA DECLARACION DE LA CLASE A 3D
-        let NombreAmbito = '';
-        for(let i = 0;i<Ambito.length;i++){
-            if(i == 0){
-                NombreAmbito += Ambito[i];
-            }else{
-                NombreAmbito += '_'+Ambito[i];
-            }
-        }
-        TextoDeclaracionesClase = TextoDeclaracionesClase.replace(/\n/g,"\n\t");
-        TextoDeclaracionesClase = '\nproc '+NombreAmbito+' begin '+TextoDeclaracionesClase+ '\nend';
-        Texto += '\n//Declaracion de la clase '+NombreAmbito;
-        Texto += TextoDeclaracionesClase;
         EntornoPadre.setLocalizacion('Stack');
 //RECONOCER LOS METODOS Y CONSTRUCTORES
         let PoseeConstructorBasico = false;
@@ -314,17 +366,17 @@ function BloqueInstruccionesClase_CAAS(x,linea){
 //##########################
 //## BLOQUE INSTRUCCIONES ## 
 //##########################
-function BloqueInstrucciones_CAAS(x,linea){
-    this.Linea = linea;
+function BloqueInstrucciones_CAAS(x,Linea){
+    this.Linea = Linea;
     this.Instrucciones = x;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Bloque instrucciones',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Bloque instrucciones',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
         for(let i =0;i<this.Instrucciones.length;i++){
-            this.Instrucciones[i].RecuperarErrores(EntornoPadre);
+            this.Instrucciones[i].RecuperarErrores(ErroresPadre);
         }
     };
     this.Ejecutar = function(EntornoPadre,PosicionRelativaStack, Ambito){
@@ -363,12 +415,12 @@ function BloqueInstrucciones_CAAS(x,linea){
 //#####################
 //## SENTENCIA PRINT ## 
 //#####################
-function Print_CAAS(x,linea){
-    this.Linea = linea; 
+function Print_CAAS(x,Linea){
+    this.Linea = Linea; 
     this.Valor = x;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Print',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Print',this.Linea);
 
     };
     this.RecuperarErrores = function(ErroresPadre){
@@ -381,30 +433,30 @@ function Print_CAAS(x,linea){
         if(ValValor.Tipo == 'valor'){
             Texto += ValValor.Texto;
             if(ValValor.TipoDato == 'decimal'){
-                Texto += '\nprint("%d",'+ValValor.Temporal+');'
+                Texto += '\nprint("%d",'+ValValor.Temporal+');';
             }else if(ValValor.TipoDato =='entero'){
-                Texto += '\nprint("%e",'+ValValor.Temporal+');'
+                Texto += '\nprint("%e",'+ValValor.Temporal+');';
             }else if(ValValor.TipoDato == 'caracter'){
-                Texto += '\nprint("%c",'+ValValor.Temporal+');'
+                Texto += '\nprint("%c",'+ValValor.Temporal+');';
             }else if(ValValor.TipoDato =='booleano'){
-                let EtiquetaVerdadero = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
-                let EtiquetaFalso = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
-                let EtiquetaSalida = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
-                Texto += '\nif('+ValValor.Temporal +' == 1) goto '+EtiquetaVerdadero+';'
-                Texto += '\ngoto '+EtiquetaFalso+';';
-                Texto += '\n'+EtiquetaVerdadero+':';
+                for(let i = 0;i<ValValor.ListaVerdaderos.length;i++){
+                    Texto += '\n'+ValValor.ListaVerdaderos[i]+':';
+                }
                 Texto += '\nprint("%c",116);//t';
                 Texto += '\nprint("%c",114);//r';
                 Texto += '\nprint("%c",117);//u';
                 Texto += '\nprint("%c",101);//e';
-                Texto +=  '\ngoto '+EtiquetaSalida+';';
-                Texto += '\n'+EtiquetaFalso+':';
+                let NuevaEtiquetaSalida = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+                Texto += '\ngoto '+NuevaEtiquetaSalida+';';
+                for(let i = 0;i<ValValor.ListaFalsos.length;i++){
+                    Texto += '\n'+ValValor.ListaFalsos[i]+':';
+                }
                 Texto += '\nprint("%c",102);//f';
                 Texto += '\nprint("%c",97);//a';
                 Texto += '\nprint("%c",108);//l';
                 Texto += '\nprint("%c",115);//s';
                 Texto += '\nprint("%c",101);//e';
-                Texto += '\n'+EtiquetaSalida+':';
+                Texto+= '\n'+NuevaEtiquetaSalida+':';
             }else if(ValValor.TipoDato == 'cadena'){
                 let EtiquetaRetorno = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
                 let EtiquetaSalida = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
@@ -433,6 +485,11 @@ function Print_CAAS(x,linea){
                 Texto += '\nprint("%d",'+TemporalValor+');';
                 Texto += '\ngoto '+EtiquetaRetorno+';';
                 Texto += '\n'+EtiquetaSalida+':';
+            }else if(ValValor.TipoDato == 'nulo'){
+                Texto += '\nprint("%c",110);//nulo';
+                Texto += '\nprint("%c",117);//nulo';
+                Texto += '\nprint("%c",108);//nulo';
+                Texto += '\nprint("%c",108);//nulo';
             }else{
                 this.AgregarError('No se puede hacer conversion a tipo decimal desde uno de tipo '+ValValor.TipoDato);
                 return '';
@@ -456,12 +513,12 @@ function Print_CAAS(x,linea){
 //#######################
 //## SENTENCIA PRINTLN ## 
 //#######################
-function Println_CAAS(x,linea){
-    this.Linea = linea; 
+function Println_CAAS(x,Linea){
+    this.Linea = Linea; 
     this.Valor = x;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Println',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Println',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
@@ -479,24 +536,24 @@ function Println_CAAS(x,linea){
             }else if(ValValor.TipoDato == 'caracter'){
                 Texto += '\nprint("%c",'+ValValor.Temporal+');'
             }else if(ValValor.TipoDato =='booleano'){
-                let EtiquetaVerdadero = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
-                let EtiquetaFalso = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
-                let EtiquetaSalida = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
-                Texto += '\nif('+ValValor.Temporal +' == 1) goto '+EtiquetaVerdadero+';'
-                Texto += '\ngoto '+EtiquetaFalso+';';
-                Texto += '\n'+EtiquetaVerdadero+':';
+                for(let i = 0;i<ValValor.ListaVerdaderos.length;i++){
+                    Texto += '\n'+ValValor.ListaVerdaderos[i]+':';
+                }
                 Texto += '\nprint("%c",116);//t';
                 Texto += '\nprint("%c",114);//r';
                 Texto += '\nprint("%c",117);//u';
                 Texto += '\nprint("%c",101);//e';
-                Texto +=  '\ngoto '+EtiquetaSalida+';';
-                Texto += '\n'+EtiquetaFalso+':';
+                let NuevaEtiquetaSalida = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
+                Texto += '\ngoto '+NuevaEtiquetaSalida+';';
+                for(let i = 0;i<ValValor.ListaFalsos.length;i++){
+                    Texto += '\n'+ValValor.ListaFalsos[i]+':';
+                }
                 Texto += '\nprint("%c",102);//f';
                 Texto += '\nprint("%c",97);//a';
                 Texto += '\nprint("%c",108);//l';
                 Texto += '\nprint("%c",115);//s';
                 Texto += '\nprint("%c",101);//e';
-                Texto += '\n'+EtiquetaSalida+':';
+                Texto+= '\n'+NuevaEtiquetaSalida+':';
             }else if(ValValor.TipoDato == 'cadena'){
                 let EtiquetaRetorno = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
                 let EtiquetaSalida = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
@@ -525,6 +582,11 @@ function Println_CAAS(x,linea){
                 Texto += '\nprint("%d",'+TemporalValor+');';
                 Texto += '\ngoto '+EtiquetaRetorno+';';
                 Texto += '\n'+EtiquetaSalida+':';
+            }else if(ValValor.TipoDato == 'nulo'){
+                Texto += '\nprint("%c",110);//nulo';
+                Texto += '\nprint("%c",117);//nulo';
+                Texto += '\nprint("%c",108);//nulo';
+                Texto += '\nprint("%c",108);//nulo';
             }else{
                 this.AgregarError('No se puede hacer conversion a tipo decimal desde uno de tipo '+ValValor.TipoDato);
                 return '';
@@ -549,17 +611,20 @@ function Println_CAAS(x,linea){
 //########################
 //## SENTENCIA FOR EACH ## 
 //########################
-function ForEach_CAAS(x,y,z,linea){
-    this.Linea = linea; 
+function ForEach_CAAS(x,y,z,Linea){
+    this.Linea = Linea; 
     this.Variable = x;
     this.Arreglo = y;
     this.BloqueInstrucciones = z;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'For each',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'For each',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
+        this.Variable.RecuperarErrores(ErroresPadre);
+        this.ValArreglo.RecuperarErrores(ErroresPadre);
+        this.BloqueInstrucciones.RecuperarErrores(ErroresPadre);
     };
     this.Ejecutar = function(EntornoPadre){        
         let Texto = '';        
@@ -569,9 +634,17 @@ function ForEach_CAAS(x,y,z,linea){
         let NombreVariable = this.Variable.ListaSubDeclaraciones[0].Identificador;        
         let  Simbolo = EntornoPadre.getSimboloVariable(Array.from(EntornoPadre.getAmbito()),NombreVariable);
         if(Simbolo==null||Simbolo == undefined){            
-            alert('No se encontro la variable donde se asigna el valor en el for each '+NombreVariable);
-            return;
-        }        
+            this.AgregarError('No se encontro la variable donde se asigna el valor en el for each '+NombreVariable);
+            return '';
+        }
+        if(ValArreglo.Tipo!='arreglo'){
+            this.AgregarError('Para usar for each debe ser sobre un arreglo');
+            return '';
+        }
+        if(ValArreglo.TipoDato!=Simbolo.getTipoDato().TipoDato){
+            this.AgregarError('La variable declarada debe ser del mismo tipo que el arreglo');
+            return '';
+        }
 //Metiendo las dimensiones en los primeros valores del heap
         let TemporalPosicion = 't'+EntornoPadre.Temporales.getNuevoTemporal();
         let TemporalPosicionHeap = 't'+EntornoPadre.Temporales.getNuevoTemporal();
@@ -622,18 +695,21 @@ function ForEach_CAAS(x,y,z,linea){
 //###################
 //## SENTENCIA FOR ## 
 //###################
-function For_CAAS(x,y,z,i,linea){
-    this.Linea = linea; 
+function For_CAAS(x,y,z,i,Linea){
+    this.Linea = Linea; 
     this.Inicio = x;
     this.Condicion = y;
     this.Iterador = z;
     this.BloqueInstrucciones = i;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'For',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'For',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
+        this.Inicio.RecuperarErrores(ErroresPadre);
+        this.Condicion.RecuperarErrores(ErroresPadre);
+        this.Iterador.RecuperarErrores(ErroresPadre);
     };
     this.Ejecutar = function(EntornoPadre){
         let ListaContinueTemporal = Array.from(EntornoPadre.getListaContinue());
@@ -645,7 +721,6 @@ function For_CAAS(x,y,z,i,linea){
         let ValIterador = this.Iterador.Ejecutar(EntornoPadre);
         if(ValCondicion.Tipo != 'valor' || ValCondicion.TipoDato !='booleano'){
             this.AgregarError('La condicion debe dar como resultado un valor booleano');
-            alert('La condicion debe dar como resultado un valor booleano');
             return '';
         }
         if(ValIterador.TipoDato == 'booleano'){
@@ -697,16 +772,18 @@ function For_CAAS(x,y,z,i,linea){
 //########################
 //## SENTENCIA DO WHILE ## 
 //########################
-function DoWhile_CAAS(x,y,linea){
-    this.Linea = linea; 
+function DoWhile_CAAS(x,y,Linea){
+    this.Linea = Linea; 
     this.Condicion = x;
     this.BloqueInstrucciones = y;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Do While',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Do While',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
+        this.Condicion.RecuperarErrores(ErroresPadre);
+        this.BloqueInstrucciones.RecuperarErrores(ErroresPadre);
     };
     this.Ejecutar = function(EntornoPadre){
         let ListaContinueTemporal = Array.from(EntornoPadre.getListaContinue());
@@ -750,16 +827,18 @@ function DoWhile_CAAS(x,y,linea){
 //#####################
 //## SENTENCIA WHILE ## 
 //#####################
-function While_CAAS(x,y,linea){
-    this.Linea = linea; 
+function While_CAAS(x,y,Linea){
+    this.Linea = Linea; 
     this.Condicion = x;
     this.BloqueInstrucciones = y;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'While',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'While',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
+        this.Condicion.RecuperarErrores(ErroresPadre);
+        this.BloqueInstrucciones.RecuperarErrores(ErroresPadre);
     };
     this.Ejecutar = function(EntornoPadre){
         let ListaContinueTemporal = Array.from(EntornoPadre.getListaContinue());
@@ -801,21 +880,21 @@ function While_CAAS(x,y,linea){
 //#########################
 //## SENTENCIA TRY CATCH ## 
 //#########################
-function TryCatch_CAAS(x,y,z,i,linea){
-    this.Linea = linea; 
+function TryCatch_CAAS(x,y,z,i,Linea){
+    this.Linea = Linea; 
     this.BloqueIntento = x;
     this.TipoError = y;
     this.IdentificadorError = z;
     this.BloqueCaptura = i;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Try catch',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Try catch',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
     };
     this.Ejecutar = function(EntornoPadre){
-        
+        return '';
     };
     this.type = function(){
         return 'try_catch';
@@ -825,18 +904,18 @@ function TryCatch_CAAS(x,y,z,i,linea){
 //#####################
 //## SENTENCIA THROW ## 
 //#####################
-function Throw_CAAS(x,y,linea){
-    this.Linea = linea; 
+function Throw_CAAS(x,y,Linea){
+    this.Linea = Linea; 
     this.Valor = x;    
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Throw',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Throw',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
     };
     this.Ejecutar = function(EntornoPadre){
-        
+        return '';
     };
     this.type = function(){
         return 'throw';
@@ -845,16 +924,20 @@ function Throw_CAAS(x,y,linea){
 //######################
 //## SENTENCIA SWITCH ## 
 //######################
-function Switch_CAAS(x,y,linea){
-    this.Linea = linea; 
+function Switch_CAAS(x,y,Linea){
+    this.Linea = Linea; 
     this.Valor = x;
     this.BloqueCasos = y;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Switch',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Switch',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
+        this.Valor.RecuperarErrores(ErroresPadre);
+        for(let i = 0;i <this.BloqueCasos.length;i++){
+            this.BloqueCasos[i].RecuperarErrores(ErroresPadre);
+        }
     };
     this.Ejecutar = function(EntornoPadre){
         let ListaContinueTemporal = Array.from(EntornoPadre.getListaContinue());
@@ -912,16 +995,23 @@ function Switch_CAAS(x,y,linea){
 //##############################
 //## CASO DENTRO DE UN SWITCH ## 
 //##############################
-function CasosInstruccion_CAAS(x,y,linea){
-    this.Linea = linea; 
+function CasosInstruccion_CAAS(x,y,Linea){
+    this.Linea = Linea; 
     this.ListaEtiquetas = x;
     this.Instrucciones = y;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'caso',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'caso',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
+        for(let i = 0;i<this.ListaEtiquetas.length;i++){
+            if(this.ListaEtiquetas[i].Tipo == 'caso'){
+                this.ListaEtiquetas[i].Condicion.RecuperarErrores(ErroresPadre);
+            }
+        }
+        let Bloque = new BloqueInstrucciones_CAAS(this.Instrucciones,this.Linea);
+        Bloque.RecuperarErrores(ErroresPadre);
     };
     this.Ejecutar = function(EntornoPadre,Valor){
         let TextoEtiquetas = '';
@@ -992,17 +1082,22 @@ function CasosInstruccion_CAAS(x,y,linea){
 //##################
 //## SENTENCIA IF ## 
 //##################
-function If_CAAS(x,y,z,linea) {
-    this.Linea = linea; 
+function If_CAAS(x,y,z,Linea) {
+    this.Linea = Linea; 
     this.Condicion = x;
     this.Instrucciones = y;
     this.Sino = z;   
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'If',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'If',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
+        this.Condicion.RecuperarErrores(ErroresPadre);
+        this.Instrucciones.RecuperarErrores(ErroresPadre);
+        if(this.Sino!=null){
+            this.Sino.RecuperarErrores(ErroresPadre);
+        }
     };
     this.Ejecutar = function(EntornoPadre){
         let ValCondicion = this.Condicion.Ejecutar(EntornoPadre);
@@ -1036,11 +1131,11 @@ function If_CAAS(x,y,z,linea) {
 //###########
 //## BREAK ## 
 //###########
-function Break_CAAS(linea) {
-    this.Linea = linea;    
+function Break_CAAS(Linea) {
+    this.Linea = Linea;    
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Break',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Break',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
@@ -1058,11 +1153,11 @@ function Break_CAAS(linea) {
 //##############
 //## CONTINUE ## 
 //##############
-function Continue_CAAS(linea) {
-    this.Linea = linea;    
+function Continue_CAAS(Linea) {
+    this.Linea = Linea;    
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Continue',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Continue',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
@@ -1080,15 +1175,18 @@ function Continue_CAAS(linea) {
 //############
 //## RETURN ## 
 //############
-function Return_CAAS(x,linea) {
-    this.Linea = linea;
+function Return_CAAS(x,Linea) {
+    this.Linea = Linea;
     this.Valor =x;    
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Instruccion de transferencia return',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Instruccion de transferencia return',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
+        if(this.Valor!=undefined){
+            this.Valor.RecuperarErrores(ErroresPadre);
+        }
     };
     this.Ejecutar = function(EntornoPadre){
         let MetodoActual = EntornoPadre.getMetodoActual();
@@ -1096,8 +1194,7 @@ function Return_CAAS(x,linea) {
         if(this.Valor!=undefined){
             ValValor = this.Valor.Ejecutar(EntornoPadre);
             if(ValValor.Tipo!=MetodoActual.getTipoDato().Tipo||ValValor.TipoDato!=MetodoActual.getTipoDato().TipoDato){
-                alert('Se debe retornar un tipo de dato igual que el del metodo');
-                this.AgregarError('Se debe retornar un tipo de dato igual que el del metodo');
+                this.AgregarError('Se debe retornar un tipo de dato igual que el del metodo '+MetodoActual.getTipoDato()+' y recibio '+ValValor.TipoDato);
             }
             if(ValValor.TipoDato == 'booleano'){
                 for(let i = 0;i<ValValor.ListaVerdaderos.length;i++){
@@ -1179,17 +1276,21 @@ function Return_CAAS(x,linea) {
 //####################################
 //## ASIGNACION DE VARIABLE ARREGLO ## 
 //####################################
-function AsignacionVariableArreglo_CAAS(x,y,z,linea) {
-    this.Linea = linea;
+function AsignacionVariableArreglo_CAAS(x,y,z,Linea) {
+    this.Linea = Linea;
     this.Nombre =x;
     this.Valor = z;
     this.Dimensiones =y;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Asignacion variable tipo arreglo',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Asignacion variable tipo arreglo',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
+        for(let i = 0;i <this.Dimensiones.length;i++){
+            this.Dimensiones[i].RecuperarErrores(ErroresPadre);
+        }
+        this.Valor.RecuperarErrores(ErroresPadre);
     };
     this.Ejecutar = function(EntornoPadre){
         let Texto = '';
@@ -1252,14 +1353,12 @@ function AsignacionVariableArreglo_CAAS(x,y,z,linea) {
                     TextoTemporal += '\n'+TemporalPosicionHeap+' = Heap['+TemporalPosicionHeap+'];';
                 }
                 if(Simbolo.getTipoDato().Tipo!='objeto'){//A menos que sea un string 
-                    alert('Debe ser un objeto para poseer Variables dentro, el tipo es: '+Simbolo.getTipo()+' Nombre: '+Simbolo.getIdentificador());
-                    this.AgregarError('Debe ser un objeto para poseer Variables dentro');
+                    this.AgregarError('Debe ser un objeto para poseer Variables dentro, el tipo es: '+Simbolo.getTipo()+' Nombre: '+Simbolo.getIdentificador());
                 }
             }
             Simbolo = EntornoPadre.getSimboloVariable(Array.from(Ambito), this.Nombre[this.Nombre.length-1]);            
         }
         if(Simbolo ==undefined||Simbolo==null){
-            alert('No se encontro la variable(asignacion variable) '+this.Nombre[this.Nombre.length-1]+' en el ambito '+Ambito.length);
             this.AgregarError('No se encontro la variable '+this.Nombre[this.Nombre.length-1]+' en el ambito '+Ambito+", Nombre: ")
             return;
         }
@@ -1338,16 +1437,17 @@ function AsignacionVariableArreglo_CAAS(x,y,z,linea) {
 //############################
 //## ASIGNACION DE VARIABLE ## 
 //############################
-function AsignacionVariable_CAAS(x,y,linea) {
-    this.Linea = linea;
+function AsignacionVariable_CAAS(x,y,Linea) {
+    this.Linea = Linea;
     this.Nombre =x;
     this.Valor = y;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Asignacion variable',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Asignacion variable',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
+        this.Valor.RecuperarErrores(ErroresPadre);
     };
     this.Ejecutar = function(EntornoPadre){
         let TemporalPosicionHeap = 't'+EntornoPadre.Temporales.getNuevoTemporal();
@@ -1399,14 +1499,12 @@ function AsignacionVariable_CAAS(x,y,linea) {
                     TextoTemporal += '\n'+TemporalPosicionHeap+' = Heap['+TemporalPosicionHeap+'];';
                 }
                 if(Simbolo.getTipoDato().Tipo!='objeto'){//A menos que sea un string 
-                    alert('Debe ser un objeto para poseer Variables dentro, el tipo es: '+Simbolo.getTipo()+' Nombre: '+Simbolo.getIdentificador());
-                    this.AgregarError('Debe ser un objeto para poseer Variables dentro');
+                    this.AgregarError('Debe ser un objeto para poseer Variables dentro, el tipo es: '+Simbolo.getTipo()+' Nombre: '+Simbolo.getIdentificador());
                 }
             }
             Simbolo = EntornoPadre.getSimboloVariable(Array.from(Ambito), this.Nombre[this.Nombre.length-1]);            
         }
         if(Simbolo ==undefined||Simbolo==null){
-            alert('No se encontro la variable(asignacion variable) '+this.Nombre[this.Nombre.length-1]+' en el ambito '+Ambito.length);
             this.AgregarError('No se encontro la variable '+this.Nombre[this.Nombre.length-1]+' en el ambito '+Ambito+", Nombre: ")
             return;
         }
@@ -1454,21 +1552,21 @@ function AsignacionVariable_CAAS(x,y,linea) {
 //###############################
 //## DECLARACION DE LINKEDLIST ## 
 //###############################
-function DeclaracionLinkedList_CAAS(x,y,z,valor,linea) {
-    this.Linea = linea;    
+function DeclaracionLinkedList_CAAS(x,y,z,valor,Linea) {
+    this.Linea = Linea;    
     this.Modificadores = x;
     this.Tipo = y;
     this.Identificador = z;
     this.Valor = valor;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Declaracion linkedlist',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Declaracion linkedlist',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
     };
     this.Ejecutar = function(EntornoPadre){
-        
+        return '';
     };
     this.type = function(){
         return 'declaracion_linkedlist';
@@ -1477,17 +1575,20 @@ function DeclaracionLinkedList_CAAS(x,y,z,valor,linea) {
 //#############################
 //## DECLARACION DE VARIABLE ## 
 //#############################
-function DeclaracionVariable_CAAS(x,y,z,linea) {
-    this.Linea = linea;    
+function DeclaracionVariable_CAAS(x,y,z,Linea) {
+    this.Linea = Linea;    
     this.Modificadores = x;
     this.Tipo = y;
     this.ListaSubDeclaraciones = z;    
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Declaracion variable',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Declaracion variable',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
+        for(let i =0;i<this.ListaSubDeclaraciones.length;i++){
+            SubTexto = this.ListaSubDeclaraciones[i].RecuperarErrores(ErroresPadre);
+        }
     };
     this.Ejecutar = function(EntornoPadre,PosicionRelativaStack,Ambito,PrimeraPasada){
         EntornoPadre.setPosicionRelativaStack(PosicionRelativaStack);
@@ -1543,19 +1644,22 @@ function DeclaracionVariable_CAAS(x,y,z,linea) {
 //##############################
 //## SUB DECLARACION VARIABLE ## 
 //##############################
-function SubDeclaracionVariable_CAAS(x,y,z,linea) {
-    this.Linea = linea;    
+function SubDeclaracionVariable_CAAS(x,y,z,Linea) {
+    this.Linea = Linea;    
     this.Identificador = x;
     this.Dimensiones = y;
     this.Valor = z;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Sub declaracion variable',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Sub declaracion variable',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
+        if(this.Valor!=undefined){
+            ValValor = this.Valor.RecuperarErrores(ErroresPadre);
+        }
     };
-    this.Ejecutar = function(EntornoPadre,TipoDato,Visibilidad,static,final,abstract,PosicionRelativaStack,Ambito,PrimeraPasada){        
+    this.Ejecutar = function(EntornoPadre,TipoDato,Visibilidad,static,final,abstract,PosicionRelativaStack,Ambito,PrimeraPasada){
         let ValValor = null;
         Ambito = (Ambito==undefined||Ambito==null)?EntornoPadre.getAmbito():Ambito;
         PosicionRelativaStack = (PosicionRelativaStack==undefined||PosicionRelativaStack==null)?EntornoPadre.getPosicionRelativaStack():PosicionRelativaStack;
@@ -1583,19 +1687,16 @@ function SubDeclaracionVariable_CAAS(x,y,z,linea) {
                     ValValor.Texto+= '\n'+NuevaEtiquetaSalidaValValor+':';
                 }
                 if(ValValor.TipoDato != TipoDato.TipoDato){
-                    this.AgregarError('Deben ser del mismo tipo de dato');
-                    alert('1Deben ser del mismo tipo de dato '+ValValor.TipoDato+' y '+TipoDato.TipoDato+', '+ValValor.Tipo+' y '+TipoDato.Tipo+' id '+this.Identificador);
+                    this.AgregarError('1Deben ser del mismo tipo de dato '+ValValor.Tipo+' es tipo: '+ValValor.TipoDato+' y '+TipoDato.Tipo+' es tipo: '+TipoDato.TipoDato);
                     return;
                 }
                 if(ValValor.CantidadDimensiones!=undefined&&this.Dimensiones==0){
-                    this.AgregarError('El valor a asignar es un arreglo y lo desea almacenar en una variable simple');
-                    alert('1El valor a asignar es un arreglo y lo desea almacenar en una variable simple '+this.Identificador+' Cantidad dimensiones '+this.Dimensiones);
+                    this.AgregarError('1El valor a asignar es un arreglo y lo desea almacenar en una variable simple '+this.Identificador+' Cantidad dimensiones '+this.Dimensiones);
                     return;
                 }else{
                     if(ValValor.CantidadDimensiones!=undefined){
                         if(ValValor.CantidadDimensiones!=this.Dimensiones){
-                            this.AgregarError('El valor que desea asignar a el arreglo no posee la misma cantidad de dimensiones que la variable');
-                            alert('El valor que desea asignar a el arreglo no posee la misma cantidad de dimensiones que la variable '+ValValor.CantidadDimensiones+' y '+this.Dimensiones);
+                            this.AgregarError('El valor que desea asignar a el arreglo no posee la misma cantidad de dimensiones que la variable '+ValValor.CantidadDimensiones+' y '+this.Dimensiones);
                             return;
                         }
                     }
@@ -1610,8 +1711,6 @@ function SubDeclaracionVariable_CAAS(x,y,z,linea) {
                     ValValor.Texto += '\n'+TemporalPosicionHeap+' = Stack['+TemporalPosicionStack+'];';
                     ValValor.Texto += '\n'+TemporalPosicionHeap+' = '+TemporalPosicionHeap + ' + '+PosicionRelativaStack+';';
                     ValValor.Texto += '\nHeap['+TemporalPosicionHeap+'] = '+ValValor.Temporal+';';
-                }else{
-                    alert('Error no se reconocio la localizacion '+EntornoPadre.getLocalizacion());
                 }
             }else{
                 if(this.Dimensiones ==0){
@@ -1657,8 +1756,6 @@ function SubDeclaracionVariable_CAAS(x,y,z,linea) {
                         ValValor.Texto += '\n'+TemporalPosicionHeap+' = Stack['+TemporalPosicionStack+'];';
                         ValValor.Texto += '\n'+TemporalPosicionHeap+' = '+TemporalPosicionHeap + ' + '+PosicionRelativaStack+';';
                         ValValor.Texto += '\nHeap['+TemporalPosicionHeap+'] = '+ValValor.Temporal+';';
-                    }else{
-                        alert('Error no se reconocio la localizacion '+EntornoPadre.getLocalizacion());
                     }
                 }else{
                     if(TipoDato.Tipo == 'valor'){
@@ -1703,19 +1800,16 @@ function SubDeclaracionVariable_CAAS(x,y,z,linea) {
                     ValValor.Texto+= '\n'+NuevaEtiquetaSalidaValValor+':';
                 }
                 if(ValValor.TipoDato != TipoDato.TipoDato){
-                    this.AgregarError('Deben ser del mismo tipo de dato');
-                    alert('2Deben ser del mismo tipo de dato '+ValValor.TipoDato+' y '+TipoDato.TipoDato+', '+ValValor.Tipo+' y '+TipoDato.Tipo);
+                    this.AgregarError('Deben ser del mismo tipo de dato '+ValValor.Tipo+' es tipo: '+ValValor.TipoDato+' y '+TipoDato.Tipo+' es tipo:'+TipoDato.TipoDato);
                     return;
                 }
                 if(ValValor.CantidadDimensiones!=undefined&&this.Dimensiones==0){
-                    this.AgregarError('El valor a asignar es un arreglo y lo desea almacenar en una variable simple');
-                    alert('1El valor a asignar es un arreglo y lo desea almacenar en una variable simple '+this.Identificador+' Cantidad dimensiones '+this.Dimensiones);
+                    this.AgregarError('El valor a asignar es un arreglo y lo desea almacenar en una variable simple '+this.Identificador+' Cantidad dimensiones '+this.Dimensiones);
                     return;
                 }else{
                     if(ValValor.CantidadDimensiones!=undefined){
                         if(ValValor.CantidadDimensiones!=this.Dimensiones){
-                            this.AgregarError('El valor que desea asignar a el arreglo no posee la misma cantidad de dimensiones que la variable');
-                            alert('El valor que desea asignar a el arreglo no posee la misma cantidad de dimensiones que la variable '+ValValor.CantidadDimensiones+' y '+this.Dimensiones);
+                            this.AgregarError('El valor que desea asignar a el arreglo no posee la misma cantidad de dimensiones que la variable '+ValValor.CantidadDimensiones+' y '+this.Dimensiones);
                             return;
                         }
                     }
@@ -1730,8 +1824,6 @@ function SubDeclaracionVariable_CAAS(x,y,z,linea) {
                     ValValor.Texto += '\n'+TemporalPosicionHeap+' = Stack['+TemporalPosicionStack+'];';
                     ValValor.Texto += '\n'+TemporalPosicionHeap+' = '+TemporalPosicionHeap + ' + '+PosicionRelativaStack+';';
                     ValValor.Texto += '\nHeap['+TemporalPosicionHeap+'] = '+ValValor.Temporal+';';
-                }else{
-                    alert('Error no se reconocio la localizacion '+EntornoPadre.getLocalizacion());
                 }
                 return ValValor.Texto;
             }else{
@@ -1779,8 +1871,6 @@ function SubDeclaracionVariable_CAAS(x,y,z,linea) {
                         ValValor.Texto += '\n'+TemporalPosicionHeap+' = Stack['+TemporalPosicionStack+'];';
                         ValValor.Texto += '\n'+TemporalPosicionHeap+' = '+TemporalPosicionHeap + ' + '+PosicionRelativaStack+';';
                         ValValor.Texto += '\nHeap['+TemporalPosicionHeap+'] = '+ValValor.Temporal+';';
-                    }else{
-                        alert('Error no se reconocio la localizacion '+EntornoPadre.getLocalizacion());
                     }
                     return ValValor.Texto;
                 }else{
@@ -1813,8 +1903,8 @@ function SubDeclaracionVariable_CAAS(x,y,z,linea) {
 //###########################
 //## DECLARACION DE METODO ## 
 //###########################
-function DeclaracionMetodo_CAAS(x,y,z,d,p,i,linea) {
-    this.Linea = linea;
+function DeclaracionMetodo_CAAS(x,y,z,d,p,i,Linea) {
+    this.Linea = Linea;
     this.Modificadores = x;
     this.Tipo = y;
     this.Identificador = z;
@@ -1823,10 +1913,11 @@ function DeclaracionMetodo_CAAS(x,y,z,d,p,i,linea) {
     this.Instrucciones = i;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Declaracion Metodo',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Declaracion Metodo',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
+        this.Instrucciones.RecuperarErrores(ErroresPadre);
     };
     this.Ejecutar = function(EntornoPadre,PosicionRelativaStack,Ambito,PrimeraPasada){
 //OBTENER VALOR DE LOS MODIFICADORES
@@ -1854,7 +1945,7 @@ function DeclaracionMetodo_CAAS(x,y,z,d,p,i,linea) {
                 case 'final':if(final){this.AgregarError('Modificador final ya utilizado en declaracion');}final = true;break;
                 case 'abstract':if(abstract){this.AgregarError('Modificador abstract ya utilizado en declaracion');}abstract = true;break;
                 default:
-                    this.AgregarError('Modificador no permitido para declaracion de una clase');
+                    this.AgregarError('Modificador ' +this.Modificadores[i]+' no permitido para declaracion de una metodo');
             }
         }
         if(Visibilidad==''){
@@ -1896,7 +1987,7 @@ function DeclaracionMetodo_CAAS(x,y,z,d,p,i,linea) {
 //Almacenar en que metodo me encuentro actualmente
         let MetodoActual = EntornoPadre.getMetodo(Array.from(Ambito), this.Identificador,ValParametros);
         if(MetodoActual==undefined || MetodoActual == null){
-            alert('No se encontro el metodo actual, Ambito: '+Ambito+ ', Nombre: '+this.Identificador+', Dimensiones: '+ValParametros);
+            this.AgregarError('No se encontro el metodo actual, Ambito: '+Ambito+ ', Nombre: '+this.Identificador+', Dimensiones: '+ValParametros);
             return;
         }
         EntornoPadre.setMetodoActual(MetodoActual);
@@ -1939,18 +2030,19 @@ function DeclaracionMetodo_CAAS(x,y,z,d,p,i,linea) {
 //################################
 //## DECLARACION DE CONSTRUCTOR ## 
 //################################
-function DeclaracionConstructor_CAAS(x,y,z,i,linea) {
-    this.Linea = linea;
+function DeclaracionConstructor_CAAS(x,y,z,i,Linea) {
+    this.Linea = Linea;
     this.Modificadores = x;
     this.Identificador = y;
     this.Parametros = z;
     this.Instrucciones = i;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Declaracion constructor',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Declaracion constructor',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
+        this.Instrucciones.RecuperarErrores(ErroresPadre);
     };
     this.Ejecutar = function(EntornoPadre,PosicionRelativaStack,Ambito,PrimeraPasada){
         //OBTENER VALOR DE LOS MODIFICADORES
@@ -1975,7 +2067,7 @@ function DeclaracionConstructor_CAAS(x,y,z,i,linea) {
                     Visibilidad = 'private'; 
                     break;
                 default:
-                    this.AgregarError('Modificador no permitido para declaracion de una clase '+this.Modificadores[i]);
+                    this.AgregarError('Modificador '+this.Modificadores[i]+' no permitido para declaracion de una constructor');
             }
         }
         if(Visibilidad==''){
@@ -2017,7 +2109,7 @@ function DeclaracionConstructor_CAAS(x,y,z,i,linea) {
 //Almacenar en que Constructor me encuentro actualmente
         let MetodoActual = EntornoPadre.getConstructor(Array.from(Ambito), this.Identificador,ValParametros);
         if(MetodoActual==undefined || MetodoActual == null){
-            alert('No se encontro el constructor actual, Ambito: '+Ambito+ ', Nombre: '+this.Identificador+', Dimensiones: '+ValParametros);
+            this.AgregarError('No se encontro el constructor actual, Ambito: '+Ambito+ ', Nombre: '+this.Identificador+', Dimensiones: '+ValParametros);
             return;
         }
         EntornoPadre.setMetodoActual(MetodoActual);
@@ -2058,16 +2150,17 @@ function DeclaracionConstructor_CAAS(x,y,z,i,linea) {
 //#############################
 //## CASTEO EXPLICITO OBJETO ## 
 //#############################
-function CasteoExplicitoVariable_CAAS(x,y,linea) {
-    this.Linea = linea;
+function CasteoExplicitoVariable_CAAS(x,y,Linea) {
+    this.Linea = Linea;
     this.Tipo = x;
     this.Valor = y;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Casteo explicito a objeto',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Casteo explicito a objeto',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
+        this.Valor.RecuperarErrores(ErroresPadre);
     };
     this.Ejecutar = function(EntornoPadre){
         let ValValor = this.Valor.Ejecutar(EntornoPadre);
@@ -2085,16 +2178,17 @@ function CasteoExplicitoVariable_CAAS(x,y,linea) {
 //################################
 //## CASTEO EXPLICITO PRIMITIVO ## 
 //################################
-function CasteoExplicitoBasico_CAAS(x,y,linea) {
-    this.Linea = linea;
+function CasteoExplicitoBasico_CAAS(x,y,Linea) {
+    this.Linea = Linea;
     this.Tipo = x;
     this.Valor = y;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Casteo explicito tipo primitivo',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Casteo explicito tipo primitivo',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
+        this.Valor.RecuperarErrores(ErroresPadre);
     };
     this.Ejecutar = function(EntornoPadre){
         let ValValor = this.Valor.Ejecutar(EntornoPadre);
@@ -2337,15 +2431,16 @@ function CasteoExplicitoBasico_CAAS(x,y,linea) {
 //############
 //## TO STR ## 
 //############
-function ToStr_CAAS(x,linea) {
-    this.Linea = linea;
+function ToStr_CAAS(x,Linea) {
+    this.Linea = Linea;
     this.Valor = x;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'to str',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'to str',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
+        this.Valor.RecuperarErrores(ErroresPadre);
     };
     this.Ejecutar = function(EntornoPadre){
         let ValValor = this.Valor.Ejecutar(EntornoPadre);
@@ -2467,15 +2562,16 @@ function ToStr_CAAS(x,linea) {
 //###############
 //## TO DOUBLE ## 
 //###############
-function ToDouble_CAAS(x,linea) {
-    this.Linea = linea;
+function ToDouble_CAAS(x,Linea) {
+    this.Linea = Linea;
     this.Valor = x;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'to double',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'to double',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
+        this.Valor.RecuperarErrores(ErroresPadre);
     };
     this.Ejecutar = function(EntornoPadre){
         let ValValor = this.Valor.Ejecutar(EntornoPadre);
@@ -2523,15 +2619,16 @@ function ToDouble_CAAS(x,linea) {
 //############
 //## TO INT ## 
 //############
-function ToInt_CAAS(x,linea) {
-    this.Linea = linea;
+function ToInt_CAAS(x,Linea) {
+    this.Linea = Linea;
     this.Valor = x;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'to int',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'to int',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
+        this.Valor.RecuperarErrores(ErroresPadre);
     };
     this.Ejecutar = function(EntornoPadre){
         let ValValor = this.Valor.Ejecutar(EntornoPadre);
@@ -2582,15 +2679,16 @@ function ToInt_CAAS(x,linea) {
 //#############
 //## TO CHAR ## 
 //#############
-function ToChar_CAAS(x,linea) {
-    this.Linea = linea;
+function ToChar_CAAS(x,Linea) {
+    this.Linea = Linea;
     this.Valor = x;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'to char',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'to char',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
+        this.Valor.RecuperarErrores(ErroresPadre);
     };
     this.Ejecutar = function(EntornoPadre){
         let ValValor = this.Valor.Ejecutar(EntornoPadre);
@@ -2660,13 +2758,13 @@ function ToChar_CAAS(x,linea) {
 //################
 //## NEW OBJETO ## 
 //################
-function NuevoObjeto_CAAS(x,y,linea) {
-    this.Linea = linea;
+function NuevoObjeto_CAAS(x,y,Linea) {
+    this.Linea = Linea;
     this.Nombre = x;
     this.Parametros = y;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'new Objeto',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'new Objeto',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
@@ -2679,8 +2777,7 @@ function NuevoObjeto_CAAS(x,y,linea) {
         let Ambito = [];
         let Simbolo = EntornoPadre.getClase(this.Nombre[this.Nombre.length-1]);
         if(Simbolo ==undefined||Simbolo==null){
-            alert('No se encontro la clase '+this.Nombre[this.Nombre.length-1]);
-            this.AgregarError('No se encontro la clase '+this.Nombre[this.Nombre.length-1])
+            this.AgregarError('No se encontro la clase '+this.Nombre[this.Nombre.length-1]);
             return;
         }else{
             Ambito = Array.from(Simbolo.getAmbito());
@@ -2689,11 +2786,8 @@ function NuevoObjeto_CAAS(x,y,linea) {
         let SizeClase = Simbolo.getSize();
         Simbolo = EntornoPadre.getConstructor(Array.from(Ambito), this.Nombre,ValParametros);
         if((Simbolo ==undefined||Simbolo==null)&&ValParametros.length>0){
-            alert('No se encontro el constructor para la clase '+this.Nombre[this.Nombre.length-1]+' con cantidad de parametros '+ValParametros.length);
-            this.AgregarError('No se encontro el constructor para la clase '+this.Nombre[this.Nombre.length-1])
+            this.AgregarError('No se encontro el constructor para la clase '+this.Nombre[this.Nombre.length-1]+' con cantidad de parametros '+ValParametros.length);
             return;
-        }else{
-            alert('Encontre simbolo con ambito '+Simbolo.getAmbito()+' identificador: '+Simbolo.getIdentificador()+' y cantidad de parametros: '+Simbolo.getParametros().length);
         }
         let ValRetorno = new Object();
         ValRetorno.TipoDato = Ambito[Ambito.length-1];
@@ -2761,16 +2855,19 @@ function NuevoObjeto_CAAS(x,y,linea) {
 //######################
 //## NEW ARREGLO TIPO ## 
 //######################
-function NuevoArregloTipo_CAAS(x,y,linea) {
-    this.Linea = linea;
+function NuevoArregloTipo_CAAS(x,y,Linea) {
+    this.Linea = Linea;
     this.TipoDato = x;
     this.Dimensiones = y;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'new arreglo de tipo basico',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'new arreglo de tipo basico',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
+        for(let i = 0;i <this.Dimensiones.length;i++){
+            this.Dimensiones[i].RecuperarErrores(ErroresPadre);
+        }
     };
     this.Ejecutar = function(EntornoPadre){
         let Texto = '';
@@ -2828,16 +2925,19 @@ function NuevoArregloTipo_CAAS(x,y,linea) {
 //########################
 //## NEW ARREGLO OBJETO ## 
 //########################
-function NuevoArregloObjeto_CAAS(x,y,linea) {
-    this.Linea = linea;
+function NuevoArregloObjeto_CAAS(x,y,Linea) {
+    this.Linea = Linea;
     this.Nombre = x;
     this.Dimensiones = y;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'new arreglo objeto',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'new arreglo objeto',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
+        for(let i = 0;i <this.Dimensiones.length;i++){
+            this.Dimensiones[i].RecuperarErrores(ErroresPadre);
+        }
     };
     this.Ejecutar = function(EntornoPadre){
         let Texto = '';
@@ -2895,15 +2995,18 @@ function NuevoArregloObjeto_CAAS(x,y,linea) {
 //######################
 //## LISTA DE VALORES ## 
 //######################
-function ListaValores_CAAS(x,linea) {
-    this.Linea = linea;
+function ListaValores_CAAS(x,Linea) {
+    this.Linea = Linea;
     this.Lista = x;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Lista de valores',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Lista de valores',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
+        for(let i = 0;i<this.Lista.length;i++){
+            this.Lista[i].RecuperarErrores(ErroresPadre);
+        }
     };
     this.Ejecutar = function(EntornoPadre){
 //Comprobando que todos los valores sean del mismo tipo (valor, arreglo, lista valores)
@@ -3198,17 +3301,17 @@ function ListaValores_CAAS(x,linea) {
 //####################
 //## NEW LINKEDLIST ## 
 //####################
-function NuevoLinkedList_CAAS(linea) {
-    this.Linea = linea;
+function NuevoLinkedList_CAAS(Linea) {
+    this.Linea = Linea;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'new Linkedlist',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'new Linkedlist',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
     };
     this.Ejecutar = function(EntornoPadre){
-        
+        return;
     };
     this.type = function(){
         return 'new_linkedlist';
@@ -3217,19 +3320,19 @@ function NuevoLinkedList_CAAS(linea) {
 //###########
 //## GRAPH ## 
 //###########
-function Graph_CAAS(x,y,linea) {
-    this.Linea = linea;
+function Graph_CAAS(x,y,Linea) {
+    this.Linea = Linea;
     this.Ruta = x;
     this.Contenido = y;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Graph',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Graph',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
     };
     this.Ejecutar = function(EntornoPadre){
-        
+        return;
     };
     this.type = function(){
         return 'graph';
@@ -3238,18 +3341,18 @@ function Graph_CAAS(x,y,linea) {
 //################
 //## READ_FILE ## 
 //################
-function ReadFile_CAAS(x,linea) {
-    this.Linea = linea;
+function ReadFile_CAAS(x,Linea) {
+    this.Linea = Linea;
     this.Ruta = x;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Read_File',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Read_File',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
     };
     this.Ejecutar = function(EntornoPadre){
-        
+        return;
     };
     this.type = function(){
         return 'read_file';
@@ -3258,19 +3361,19 @@ function ReadFile_CAAS(x,linea) {
 //################
 //## WRITE_FILE ## 
 //################
-function WriteFile_CAAS(x,y,linea) {
-    this.Linea = linea;
+function WriteFile_CAAS(x,y,Linea) {
+    this.Linea = Linea;
     this.Ruta = x;
     this.Contenido = y;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Write_File',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Write_File',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
     };
     this.Ejecutar = function(EntornoPadre){
-        
+        return;
     };
     this.type = function(){
         return 'write_file';
@@ -3279,16 +3382,18 @@ function WriteFile_CAAS(x,y,linea) {
 //##############
 //## POTENCIA ## 
 //##############
-function Potencia_CAAS(x,y,linea) {
-    this.Linea = linea;
+function Potencia_CAAS(x,y,Linea) {
+    this.Linea = Linea;
     this.Base = x;
     this.Exponente = x;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Potencia',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Potencia',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
+        this.Base.RecuperarErrores(ErroresPadre);
+        this.Exponente.RecuperarErrores(ErroresPadre);
     };
     this.Ejecutar = function(EntornoPadre){
         let ValBase = this.Base.Ejecutar(EntornoPadre);
@@ -3350,15 +3455,16 @@ function Potencia_CAAS(x,y,linea) {
 //##################
 //## UNARIO MENOS ## 
 //##################
-function UnarioMenos_CAAS(x,linea) {
-    this.Linea = linea;
+function UnarioMenos_CAAS(x,Linea) {
+    this.Linea = Linea;
     this.Valor = x;    
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'UNARIO -',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'UNARIO -',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
+        this.Valor.RecuperarErrores(ErroresPadre);
     };
     this.Ejecutar = function(EntornoPadre){
         let ValValor = this.Valor.Ejecutar(EntornoPadre);
@@ -3387,15 +3493,16 @@ function UnarioMenos_CAAS(x,linea) {
 //################
 //## UNARIO MAS ## 
 //################
-function UnarioMas_CAAS(x,linea) {
-    this.Linea = linea;
+function UnarioMas_CAAS(x,Linea) {
+    this.Linea = Linea;
     this.Valor = x;    
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'UNARIO +',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'UNARIO +',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
+        this.Valor.RecuperarErrores(ErroresPadre);
     };
     this.Ejecutar = function(EntornoPadre){
         let ValValor = this.Valor.Ejecutar(EntornoPadre);
@@ -3424,17 +3531,19 @@ function UnarioMas_CAAS(x,linea) {
 //##########
 //## SUMA ## 
 //##########
-function Suma_CAAS(x,y,z,linea) {
-    this.Linea = linea;
+function Suma_CAAS(x,y,z,Linea) {
+    this.Linea = Linea;
     this.Izq = x;
     this.Der = y;
     this.Tipo = z;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Suma (+)',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Suma (+)',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
+        this.Izq.RecuperarErrores(ErroresPadre);
+        this.Der.RecuperarErrores(ErroresPadre);
     };
     this.Ejecutar = function(EntornoPadre){        
         let ValIzq = this.Izq.Ejecutar(EntornoPadre);
@@ -3726,17 +3835,19 @@ function Suma_CAAS(x,y,z,linea) {
 //###########
 //## RESTA ## 
 //###########
-function Resta_CAAS(x,y,z,linea) {
-    this.Linea = linea;
+function Resta_CAAS(x,y,z,Linea) {
+    this.Linea = Linea;
     this.Izq = x;
     this.Der = y;
     this.Tipo = z;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Resta (-)',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Resta (-)',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
+        this.Izq.RecuperarErrores(ErroresPadre);
+        this.Der.RecuperarErrores(ErroresPadre);
     };
     this.Ejecutar = function(EntornoPadre){        
         let ValIzq = this.Izq.Ejecutar(EntornoPadre);
@@ -3780,17 +3891,19 @@ function Resta_CAAS(x,y,z,linea) {
 //####################
 //## MULTIPLICACION ## 
 //####################
-function Multiplicacion_CAAS(x,y,z,linea) {
-    this.Linea = linea;
+function Multiplicacion_CAAS(x,y,z,Linea) {
+    this.Linea = Linea;
     this.Izq = x;
     this.Der = y;
     this.Tipo = z;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Multiplicacion (*)',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Multiplicacion (*)',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
+        this.Izq.RecuperarErrores(ErroresPadre);
+        this.Der.RecuperarErrores(ErroresPadre);
     };
     this.Ejecutar = function(EntornoPadre){
         let ValIzq = this.Izq.Ejecutar(EntornoPadre);
@@ -3834,17 +3947,19 @@ function Multiplicacion_CAAS(x,y,z,linea) {
 //##############
 //## DIVISION ## 
 //##############
-function Division_CAAS(x,y,z,linea) {
-    this.Linea = linea;
+function Division_CAAS(x,y,z,Linea) {
+    this.Linea = Linea;
     this.Izq = x;
     this.Der = y;
     this.Tipo = z;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Division (/)',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Division (/)',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
+        this.Izq.RecuperarErrores(ErroresPadre);
+        this.Der.RecuperarErrores(ErroresPadre);
     };
     this.Ejecutar = function(EntornoPadre){
         let ValIzq = this.Izq.Ejecutar(EntornoPadre);
@@ -3888,17 +4003,19 @@ function Division_CAAS(x,y,z,linea) {
 //############
 //## MODULO ## 
 //############
-function Modulo_CAAS(x,y,z,linea) {
-    this.Linea = linea;
+function Modulo_CAAS(x,y,z,Linea) {
+    this.Linea = Linea;
     this.Izq = x;
     this.Der = y;
     this.Tipo = z;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Mod (%)',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Mod (%)',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
+        this.Izq.RecuperarErrores(ErroresPadre);
+        this.Der.RecuperarErrores(ErroresPadre);
     };
     this.Ejecutar = function(EntornoPadre){
         let ValIzq = this.Izq.Ejecutar(EntornoPadre);
@@ -3942,17 +4059,19 @@ function Modulo_CAAS(x,y,z,linea) {
 //################
 //## RELACIONAL ## 
 //################
-function Relacional_CAAS(x,y,z,linea) {
-    this.Linea = linea;
+function Relacional_CAAS(x,y,z,Linea) {
+    this.Linea = Linea;
     this.Izq = x;
     this.Der = y;
     this.Tipo = z;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Relacional(<,<=,>,>=,!=,==)',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Relacional(<,<=,>,>=,!=,==)',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
+        this.Izq.RecuperarErrores(ErroresPadre);
+        this.Der.RecuperarErrores(ErroresPadre);
     };
     this.Ejecutar = function(EntornoPadre){
         let ValIzq = this.Izq.Ejecutar(EntornoPadre);
@@ -3963,8 +4082,8 @@ function Relacional_CAAS(x,y,z,linea) {
             this.AgregarError('No se pudo obtener el valor de uno de los operandos');
             return;
         }
-        if(ValIzq.Tipo != 'valor' || ValDer.Tipo != 'valor'){
-            this.AgregarError('Uno de los valores no es un valor simple no se puede realizar la suma');
+        if((ValIzq.Tipo != 'valor' || ValDer.Tipo != 'valor')&&(this.Tipo!='=='&&this.Tipo!='!=')){
+            this.AgregarError('Uno de los valores no es un valor simple no se puede realizar operacion relacional');
             return;
         }
         if(this.Tipo=='>='||this.Tipo=='>'||this.Tipo=='<='||this.Tipo=='<'){
@@ -3996,8 +4115,10 @@ function Relacional_CAAS(x,y,z,linea) {
                 //aqui es donde debo descomponer los string y obtener la suba del ascii de toda la cadena
             }
             else if(ValIzq.TipoDato == 'booleano'&& ValDer.TipoDato=='booleano'){TipoResultante = 'booleano';}
+            else if(ValIzq.Tipo=='objeto'&&ValDer.Tipo =='valor'&&ValDer.TipoDato=='nulo'){TipoResultante = 'booleano';}
+            else if(ValIzq.Tipo=='valor'&&ValIzq.TipoDato=='nulo'&&ValDer.Tipo =='objeto'){TipoResultante = 'booleano';}
             else{
-                this.AgregarError('No se pudo obtener el tipo de dato resultante entre los operandos');
+                this.AgregarError('No se pudo obtener el tipo de dato resultante entre los operandos con '+this.Tipo);
                 return;
             }
         }
@@ -4024,16 +4145,17 @@ function Relacional_CAAS(x,y,z,linea) {
 //################
 //## INSTANCEOF ## //Creo que aqui deberia hacer otro isntanceof para arreglos para facilitar un poco todo
 //################
-function Instanceof_CAAS(x,y,linea) {
-    this.Linea = linea;
+function Instanceof_CAAS(x,y,Linea) {
+    this.Linea = Linea;
     this.Izq = x;
     this.Der = y;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Instanceof(instanceof)',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Instanceof(instanceof)',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
+        this.Izq.RecuperarErrores(ErroresPadre);
     };
     this.Ejecutar = function(EntornoPadre){
         let ValIzq = this.Izq.Ejecutar(EntornoPadre);
@@ -4076,16 +4198,18 @@ function Instanceof_CAAS(x,y,linea) {
 //########
 //## AND ## 
 //########
-function And_CAAS(x,y,linea) {
-    this.Linea = linea;
+function And_CAAS(x,y,Linea) {
+    this.Linea = Linea;
     this.Izq = x;
     this.Der = y;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'And(&&)',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'And(&&)',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
+        this.Izq.RecuperarErrores(ErroresPadre);
+        this.Der.RecuperarErrores(ErroresPadre);
     };
     this.Ejecutar = function(EntornoPadre){        
         let ValIzq = this.Izq.Ejecutar(EntornoPadre);
@@ -4124,16 +4248,18 @@ function And_CAAS(x,y,linea) {
 //########
 //## OR ## 
 //########
-function Or_CAAS(x,y,linea) {
-    this.Linea = linea;
+function Or_CAAS(x,y,Linea) {
+    this.Linea = Linea;
     this.Izq = x;
     this.Der = y;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Or(||)',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Or(||)',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
+        this.Izq.RecuperarErrores(ErroresPadre);
+        this.Der.RecuperarErrores(ErroresPadre);
     };
     this.Ejecutar = function(EntornoPadre){
         let ValIzq = this.Izq.Ejecutar(EntornoPadre);
@@ -4172,16 +4298,18 @@ function Or_CAAS(x,y,linea) {
 //#########
 //## XOR ## 
 //#########
-function Xor_CAAS(x,y,linea) {
-    this.Linea = linea;
+function Xor_CAAS(x,y,Linea) {
+    this.Linea = Linea;
     this.Izq = x;
     this.Der = y;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Xor(^)',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Xor(^)',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
+        this.Izq.RecuperarErrores(ErroresPadre);
+        this.Der.RecuperarErrores(ErroresPadre);
     };
     this.Ejecutar = function(EntornoPadre){
         let ValIzq = this.Izq.Ejecutar(EntornoPadre);
@@ -4234,15 +4362,16 @@ function Xor_CAAS(x,y,linea) {
 //##############
 //## NEGACION ## 
 //##############
-function Not_CAAS(x,linea) {
-    this.Linea = linea;
+function Not_CAAS(x,Linea) {
+    this.Linea = Linea;
     this.Valor = x;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Negacion(!)',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Negacion(!)',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
+        this.Valor.RecuperarErrores(ErroresPadre);
     };
     this.Ejecutar = function(EntornoPadre){
         let ValValor = this.Valor.Ejecutar(EntornoPadre);
@@ -4271,15 +4400,16 @@ function Not_CAAS(x,linea) {
 //###################
 //## OBTENER TEXTO ## 
 //###################
-function ObtenerTexto_CAAS(x,linea) {
-    this.Linea = linea;
+function ObtenerTexto_CAAS(x,Linea) {
+    this.Linea = Linea;
     this.Valor = x;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Obtener texto',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Obtener texto',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
+        this.Valor.RecuperarErrores(ErroresPadre);
     };
     this.Ejecutar = function(EntornoPadre){
         return this.Valor.Ejecutar(EntornoPadre).Texto;
@@ -4291,13 +4421,13 @@ function ObtenerTexto_CAAS(x,linea) {
 //##########################################
 //## INCREMENTO O DECREMENTO MODO POSTFIJO ## 
 //##########################################
-function IncDecPostfijo_CAAS(x,y,linea) {
-    this.Linea = linea;
+function IncDecPostfijo_CAAS(x,y,Linea) {
+    this.Linea = Linea;
     this.Tipo = x;
     this.Nombre = y;    
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Incremento o decremento postfijo',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Incremento o decremento postfijo',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
@@ -4323,6 +4453,8 @@ function IncDecPostfijo_CAAS(x,y,linea) {
         //Primero obtengo el valor y luego hago la asignacion
         let ValValor = this.Nombre.Ejecutar(EntornoPadre);
         let Texto = Asignacion.Ejecutar(EntornoPadre);
+        this.Nombre.RecuperarErrores(this.Errores);
+        Asignacion.RecuperarErrores(this.Errores);
         ValValor.Texto =  ValValor.Texto +Texto;
         return ValValor; 
     };
@@ -4333,13 +4465,13 @@ function IncDecPostfijo_CAAS(x,y,linea) {
 //##########################################
 //## INCREMENTO O DECREMENTO MODO PREFIJO ## 
 //##########################################
-function IncDecPrefijo_CAAS(x,y,linea) {
-    this.Linea = linea;
+function IncDecPrefijo_CAAS(x,y,Linea) {
+    this.Linea = Linea;
     this.Tipo = x;
     this.Nombre = y;    
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Incremento o decremento prefijo',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Incremento o decremento prefijo',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
@@ -4365,6 +4497,8 @@ function IncDecPrefijo_CAAS(x,y,linea) {
         //Primero incremento o decremento y luego retorno el valor
         let Texto = Asignacion.Ejecutar(EntornoPadre);
         let ValValor = this.Nombre.Ejecutar(EntornoPadre);
+        this.Nombre.RecuperarErrores(this.Errores);
+        Asignacion.RecuperarErrores(this.Errores);
         ValValor.Texto = Texto + ValValor.Texto;
         return ValValor;
     };
@@ -4375,17 +4509,20 @@ function IncDecPrefijo_CAAS(x,y,linea) {
 //##############
 //## TERNARIO ## 
 //##############
-function Ternario_CAAS(x,y,z,linea) {
-    this.Linea = linea;
+function Ternario_CAAS(x,y,z,Linea) {
+    this.Linea = Linea;
     this.Condicion = x;    
     this.ValorVerdadero = y;
     this.ValorFalso = z;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Ternario',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Ternario',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
+        this.Condicion.RecuperarErrores(ErroresPadre);
+        this.ValorVerdadero.RecuperarErrores(ErroresPadre);
+        this.ValorFalso.RecuperarErrores(ErroresPadre);
     };
     this.Ejecutar = function(EntornoPadre){
         let ValCondicion = this.Condicion.Ejecutar(EntornoPadre);
@@ -4488,13 +4625,13 @@ function Ternario_CAAS(x,y,z,linea) {
 //###########
 //## Valor ## 
 //###########
-function Valor_CAAS(x,y,linea) {
-    this.Linea = linea;
+function Valor_CAAS(x,y,Linea) {
+    this.Linea = Linea;
     this.Tipo = x;    
     this.Valor = y;    
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Valor simple',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Valor simple',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
@@ -4549,12 +4686,12 @@ function Valor_CAAS(x,y,linea) {
 //##############
 //## VARIABLE ## 
 //##############
-function Variable_CAAS(x,linea) {
-    this.Linea = linea;
+function Variable_CAAS(x,Linea) {
+    this.Linea = Linea;
     this.Nombre = x;    
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Acceso a valor de una variable',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Acceso a valor de una variable',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
@@ -4605,7 +4742,6 @@ function Variable_CAAS(x,linea) {
                     ValRetornoTemporal.Tipo = 'valor';
                     ValRetornoTemporal.Texto = TextoTemporal;
                     ValRetornoTemporal.Temporal = TemporalValorStack;
-                    alert(ValRetornoTemporal.Texto);
                     return ValRetornoTemporal;
                 }
                 NombreClase = Simbolo.getTipoDato().TipoDato;
@@ -4626,15 +4762,13 @@ function Variable_CAAS(x,linea) {
                     TextoTemporal += '\n'+TemporalPosicionHeap+' = Heap['+TemporalPosicionHeap+'];';
                 }
                 if(Simbolo.getTipoDato().Tipo!='objeto'){//A menos que sea un string 
-                    alert('Debe ser un objeto para poseer mas cosas dentro, el tipo es: '+Simbolo.getTipo()+' Nombre: '+Simbolo.getIdentificador());
-                    this.AgregarError('Debe ser un objeto para poseer variables dentro');
+                    this.AgregarError('Debe ser un objeto para poseer mas cosas dentro, el tipo es: '+Simbolo.getTipo()+' Nombre: '+Simbolo.getIdentificador());
                 }
             }
             Simbolo = EntornoPadre.getSimboloVariable(Array.from(Ambito), this.Nombre[this.Nombre.length-1]);            
         }
         if(Simbolo ==undefined||Simbolo==null){
-            alert('No se encontro la variable '+this.Nombre[this.Nombre.length-1]+' en el ambito '+Ambito+", Nombre: ");
-            this.AgregarError('No se encontro la variable '+this.Nombre[this.Nombre.length-1]+' en el ambito '+Ambito+", Nombre: ")
+            this.AgregarError('No se encontro la variable '+this.Nombre[this.Nombre.length-1]+' en el ambito '+Ambito)
             return;
         }        
         let ValRetorno = new Object();
@@ -4686,13 +4820,13 @@ function Variable_CAAS(x,linea) {
 //########################
 //## LLAMADA DE FUNCION ##  
 //########################
-function LlamadaFuncion_CAAS(x,y,linea) {
-    this.Linea = linea;
+function LlamadaFuncion_CAAS(x,y,Linea) {
+    this.Linea = Linea;
     this.Nombre = x;
     this.Parametros = y;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Llamada a funcion',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Llamada a funcion',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);        
@@ -4715,35 +4849,33 @@ function LlamadaFuncion_CAAS(x,y,linea) {
                 AmbitoTemporal.pop();
                 if(this.Nombre[0]=='super'){
                     if(AmbitoTemporal.length==1){
-                        alert('Esta tratando de usar super en una clase que no hereda '+this.Nombre);
                         this.AgregarError('Esta tratando de usar super en una clase que no hereda '+this.Nombre);
                         return;
                     }
                     AmbitoTemporal.pop();
                 }
-                alert('El ambito es: '+AmbitoTemporal+' y cantidad de parametros '+ValDimensiones.length);
                 Simbolo = EntornoPadre.getConstructor(Array.from(AmbitoTemporal), AmbitoTemporal[AmbitoTemporal.length-1],ValDimensiones);
-                if(Simbolo!=null&&Simbolo!=undefined){
-                    alert('Si encontre el simbolo '+Simbolo.getIdentificador());
-                }
             }else{
                 Simbolo = EntornoPadre.getMetodo(Array.from(EntornoPadre.getAmbito()), this.Nombre,ValDimensiones);
             }
             if(Simbolo ==undefined||Simbolo==null){
-                alert('No se encontro metodo en ambito1 '+EntornoPadre.getAmbito()+", Nombre: "+this.Nombre+", Dimensiones: "+ValDimensiones);
-                this.AgregarError('No se encontro el metodo '+this.Nombre)
+                this.AgregarError('No se encontro metodo en ambito '+EntornoPadre.getAmbito()+", Nombre: "+this.Nombre+", Dimensiones: "+ValDimensiones);
                 return;
             }
-        }else if(this.Nombre.length==2&&(this.Nombre[0]=='super')){
+        }else if(this.Nombre.length==2&&(this.Nombre[0]=='super'||this.Nombre[0]=='this')){
             let AmbitoTemporal = Array.from(EntornoPadre.getAmbito());
+            AmbitoTemporal.pop();
+            if(AmbitoTemporal.length==1&&this.Nombre[0]=='super'){
+                this.AgregarError('Esta tratando de usar super en una clase que no hereda '+this.Nombre);
+                return;
+            }
+            if(this.Nombre[0]=='super'){
                 AmbitoTemporal.pop();
-                if(AmbitoTemporal.length==1){
-                    alert('Esta tratando de usar super en una clase que no hereda '+this.Nombre);
-                    this.AgregarError('Esta tratando de usar super en una clase que no hereda '+this.Nombre);
-                    return;
-                }
-                AmbitoTemporal.pop();
-                Simbolo = EntornoPadre.getMetodo(Array.from(AmbitoTemporal), this.Nombre[this.Nombre.length-1],ValDimensiones);
+            }
+            Simbolo = EntornoPadre.getMetodo(Array.from(AmbitoTemporal), this.Nombre[this.Nombre.length-1],ValDimensiones);
+            if(Simbolo ==undefined||Simbolo==null){
+                this.AgregarError('No se encontro metodo en ambito '+Ambito+", Nombre: "+this.Nombre[this.Nombre.length-1]+", Parametros: "+ValDimensiones);
+            }
         }else{
             Ambito = Array.from(EntornoPadre.getAmbito());
             for(let i = 0;i<this.Nombre.length-1;i++){
@@ -4754,7 +4886,6 @@ function LlamadaFuncion_CAAS(x,y,linea) {
                     }else if(this.Nombre[0]=='super'){
                         Ambito.pop();
                         if(Ambito.length==1){
-                            alert('Esta tratando de usar super en una clase que no hereda '+this.Nombre);
                             this.AgregarError('Esta tratando de usar super en una clase que no hereda '+this.Nombre);
                             return;
                         }
@@ -4768,7 +4899,6 @@ function LlamadaFuncion_CAAS(x,y,linea) {
                     if(this.Nombre[i]=='super'){
                         Ambito.pop();
                         if(Ambito.length==1){
-                            alert('Esta tratando de usar super en una clase que no hereda '+this.Nombre);
                             this.AgregarError('Esta tratando de usar super en una clase que no hereda '+this.Nombre);
                             return;
                         }
@@ -4815,8 +4945,7 @@ function LlamadaFuncion_CAAS(x,y,linea) {
                             return Temporal.Ejecutar(EntornoPadre);
                         }
                     }
-                    alert('Debe ser un objeto para poseer funciones, el tipo es: '+Simbolo.getTipo()+' Nombre: '+Simbolo.getIdentificador());
-                    this.AgregarError('Debe ser un objeto para poseer funciones');
+                    this.AgregarError('Debe ser un objeto para poseer funciones, el tipo es: '+Simbolo.getTipo()+' Nombre: '+Simbolo.getIdentificador());
                 }
             }
             let PreSimbolo = Simbolo;
@@ -4846,9 +4975,7 @@ function LlamadaFuncion_CAAS(x,y,linea) {
                         return Temporal.Ejecutar(EntornoPadre);
                     }
                 }else{
-                    alert('No se encontro metodo en ambito2 '+Ambito+", Nombre: "+this.Nombre[this.Nombre.length-1]+", Parametros: "+ValDimensiones);
-                    EntornoPadre.VerTabla();
-                    this.AgregarError('No se encontro metodo en ambito2 '+Ambito+", Nombre: "+this.Nombre[this.Nombre.length-1]+", Parametros: "+ValDimensiones);
+                    this.AgregarError('No se encontro metodo en ambito '+Ambito+", Nombre: "+this.Nombre[this.Nombre.length-1]+", Parametros: "+ValDimensiones);
                     return;
                 }
             }
@@ -4877,13 +5004,12 @@ function LlamadaFuncion_CAAS(x,y,linea) {
             ValRetorno.Texto += ValDimensiones[i].Texto;
         }
         let TamañoMetodoActual = EntornoPadre.getMetodoActual().getSize();//Aqui tengo que obtener el tamaño del metodo en el que me encuentro actualmente
-        
         if(this.Nombre.length==1){
             ValRetorno.Texto += '\n'+TemporalPosicionStack+' = P + 0;';
             ValRetorno.Texto += '\n'+TemporalPosicionHeap+' = Stack['+TemporalPosicionStack+'];';
             ValRetorno.Texto += '\n'+TemporalPosicionStack+' = P + '+TamañoMetodoActual+';'
             ValRetorno.Texto += '\nStack['+TemporalPosicionStack+'] = '+TemporalPosicionHeap+';';
-        }else if(this.Nombre.length==2&&(this.Nombre[0]=='super')){
+        }else if(this.Nombre.length==2&&(this.Nombre[0]=='super'||this.Nombre[0]=='this')){
             ValRetorno.Texto += '\n'+TemporalPosicionStack+' = P + 0;';
             ValRetorno.Texto += '\n'+TemporalPosicionHeap+' = Stack['+TemporalPosicionStack+'];';
             ValRetorno.Texto += '\n'+TemporalPosicionStack+' = P + '+TamañoMetodoActual+';'
@@ -4912,7 +5038,7 @@ function LlamadaFuncion_CAAS(x,y,linea) {
         }else if(Simbolo.getTipo().toLowerCase()=='constructor'){
             let NombreMetodo3D = Simbolo.getIdentificador()+'_'+Simbolo.getIdentificador()+'_'+Parametros;
             ValRetorno.Texto += '\ncall '+'Constructor_'+NombreMetodo3D+';//Llamada explicita de constructor con super o this';
-        }        
+        }       
         ValRetorno.Texto += '\nP = P - '+TamañoMetodoActual+';';
         //Obteniendo el valor de return
         ValRetorno.Texto += '\n'+TemporalPosicionStack+' = P + 1;';
@@ -4926,11 +5052,11 @@ function LlamadaFuncion_CAAS(x,y,linea) {
 }
 
 /////////// metodo tochararray caas /////////////////
-function tolowercase_Caas(TextoTemporal,TemporalPosicionHeap,linea){
-    this.Linea = linea;
+function tolowercase_Caas(TextoTemporal,TemporalPosicionHeap,Linea){
+    this.Linea = Linea;
     this.TextoTemporal = TextoTemporal;
     this.TemporalPosicionHeap = TemporalPosicionHeap;
-    this.Linea = linea;
+    this.Linea = Linea;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
         this.Errores.Agregar('semantico',descripcion,'Metodo tolowercase',this.Linea);
@@ -5006,11 +5132,11 @@ function tolowercase_Caas(TextoTemporal,TemporalPosicionHeap,linea){
 
 
 /////////// metodo tochararray caas /////////////////
-function touppercase_Caas(TextoTemporal,TemporalPosicionHeap,linea){
-    this.Linea = linea;
+function touppercase_Caas(TextoTemporal,TemporalPosicionHeap,Linea){
+    this.Linea = Linea;
     this.TextoTemporal = TextoTemporal;
     this.TemporalPosicionHeap = TemporalPosicionHeap;
-    this.Linea = linea;
+    this.Linea = Linea;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
         this.Errores.Agregar('semantico',descripcion,'Metodo touppercase',this.Linea);
@@ -5085,11 +5211,11 @@ function touppercase_Caas(TextoTemporal,TemporalPosicionHeap,linea){
 
 
 /////////// metodo tochararray caas /////////////////
-function length_Caas(TextoTemporal,TemporalPosicionHeap,linea){
-    this.Linea = linea;
+function length_Caas(TextoTemporal,TemporalPosicionHeap,Linea){
+    this.Linea = Linea;
     this.TextoTemporal = TextoTemporal;
     this.TemporalPosicionHeap = TemporalPosicionHeap;
-    this.Linea = linea;
+    this.Linea = Linea;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
         this.Errores.Agregar('semantico',descripcion,'Metodo length',this.Linea);
@@ -5143,11 +5269,11 @@ function length_Caas(TextoTemporal,TemporalPosicionHeap,linea){
 }
 
 /////////// metodo tochararray caas /////////////////
-function tochararray_Caas(TextoTemporal,TemporalPosicionHeap,linea){
-    this.Linea = linea;
+function tochararray_Caas(TextoTemporal,TemporalPosicionHeap,Linea){
+    this.Linea = Linea;
     this.TextoTemporal = TextoTemporal;
     this.TemporalPosicionHeap = TemporalPosicionHeap;
-    this.Linea = linea;
+    this.Linea = Linea;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
         this.Errores.Agregar('semantico',descripcion,'Metodo tochararray',this.Linea);
@@ -5222,21 +5348,20 @@ function tochararray_Caas(TextoTemporal,TemporalPosicionHeap,linea){
 
 /////////// metodo equals caas /////////////////
 
-function equals_Caas(a,x,y,linea) {
-    this.Linea = linea;
+function equals_Caas(a,x,y,Linea) {
+    this.Linea = Linea;
     this.TextoIzq = a;
     this.OpIzq = x;
     this.OpDer = y;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Metodo Equals',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Metodo Equals',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
     };
     this.Ejecutar = function(EntornoPadre){
         if(this.OpDer.Tipo != 'objeto'){
-            alert('El metodo equals debe ser entre dos objetos');
             this.AgregarError('El metodo equals debe ser entre dos objetos');
             return;
         }
@@ -5261,12 +5386,12 @@ function equals_Caas(a,x,y,linea) {
     };
 }
 //////////////////////// Metodo getclass /////////////////////////////
-function getClass_Caas(x,linea) {
-    this.Linea = linea;
+function getClass_Caas(x,Linea) {
+    this.Linea = Linea;
     this.Valor = x;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Metodo getClass',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Metodo getClass',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
@@ -5298,14 +5423,14 @@ function getClass_Caas(x,linea) {
 
 /////////////////////// Metodo toString ///////////////////////////////////////
 
-function toString_Caas(PreSimbolo,TextoTemporal,TemporalPosicionHeap,linea){
-    this.Linea = linea;
+function toString_Caas(PreSimbolo,TextoTemporal,TemporalPosicionHeap,Linea){
+    this.Linea = Linea;
     this.PreSimbolo = PreSimbolo;
     this.TextoTemporal = TextoTemporal;
     this.TemporalPosicionHeap = TemporalPosicionHeap;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Metodo toString',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Metodo toString',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
@@ -5343,13 +5468,13 @@ function toString_Caas(PreSimbolo,TextoTemporal,TemporalPosicionHeap,linea){
 //####################################
 //## VARIABLE TIPO ARREGLO VARIABLE ##  //Es cuando se accede a una variable de tipo arreglo
 //####################################
-function VariableArreglo_Variable_Caas(x,y,linea) {
-    this.Linea = linea;
+function VariableArreglo_Variable_Caas(x,y,Linea) {
+    this.Linea = Linea;
     this.Nombre = x;
     this.Dimensiones = y;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Acceso a Variable tipo Arreglo con variable',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Acceso a Variable tipo Arreglo con variable',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);        
@@ -5435,15 +5560,14 @@ function VariableArreglo_Variable_Caas(x,y,linea) {
                     TextoTemporal += '\n'+TemporalPosicionHeap+' = Heap['+TemporalPosicionHeap+'];';
                 }
                 if(Simbolo.getTipoDato().Tipo!='objeto'){//A menos que sea un string 
-                    alert('Debe ser un objeto para poseer mas cosas dentro, el tipo es: '+Simbolo.getTipo()+' Nombre: '+Simbolo.getIdentificador());
-                    this.AgregarError('Debe ser un objeto para poseer variables dentro');
+                    this.AgregarError('Debe ser un objeto para poseer mas cosas dentro, el tipo es: '+Simbolo.getTipo()+' Nombre: '+Simbolo.getIdentificador());
+                    return;
                 }
             }
             Simbolo = EntornoPadre.getSimboloVariable(Array.from(Ambito), this.Nombre[this.Nombre.length-2]);
         }
         if(Simbolo ==undefined||Simbolo==null){
-            alert('No se encontro la variable '+this.Nombre[this.Nombre.length-1]+' en el ambito '+Ambito+", Nombre: ");
-            this.AgregarError('No se encontro la variable '+this.Nombre[this.Nombre.length-1]+' en el ambito '+Ambito+", Nombre: ")
+            this.AgregarError('No se encontro la variable '+this.Nombre[this.Nombre.length-1]+' en el ambito '+Ambito)
             return;
         }
 //////////////////////
@@ -5479,7 +5603,6 @@ function VariableArreglo_Variable_Caas(x,y,linea) {
             ValValorTemporal = ValorTemporal.Ejecutar(EntornoPadre);
             ValDimensiones.unshift(ValValorTemporal);
         }
-        alert("3\n"+Texto);
         if(CantidadDimensiones < Simbolo.getDimensiones()){//SI TIENE LA MISMA CANTIDAD DE DIMENSIONES            
             Texto += '\n//Inicio Copia del arreglo de mas dimensiones a uno de menos dimensiones'
             Texto += '\n'+TemporalNuevaPosicion+' = H;//';
@@ -5545,7 +5668,8 @@ function VariableArreglo_Variable_Caas(x,y,linea) {
         }else if(CantidadDimensiones == Simbolo.getDimensiones()){//SI NO TIENE LA MISMA CANTIDAD DE DIMENSIONES            
             Texto += '\n'+TemporalPosicion + ' = Heap['+TemporalPosicionHeap+'];';
         }else{
-            alert('El arreglo posee mas dimensiones de las que deberia');
+            this.AgregarError('El arreglo posee mas dimensiones de las que deberia');
+            return;
         }
         Texto += '\ngoto '+EtiquetaSalida+';';
         Texto += '\n'+EtiquetaSalto+'://Si se trato de acceder al indice de un arreglo y no existe se retorna 0';
@@ -5599,14 +5723,13 @@ function VariableArreglo_Variable_Caas(x,y,linea) {
                 ValRetorno.Texto = Texto;
                 return ValRetorno;
             }else{
-                alert('Un Arreglo solo posee el mientro length');
                 this.AgregarError('Un Arreglo solo posee el mientro length');
                 return;
             }
         }else{
             if(Simbolo.getTipoDato().Tipo!='objeto'){//A menos que sea un string 
-                alert('Debe ser un objeto para poseer mas cosas dentro, el tipo es: '+Simbolo.getTipo()+' Nombre: '+Simbolo.getIdentificador());
-                this.AgregarError('Debe ser un objeto para poseer variables dentro');
+                this.AgregarError('Debe ser un objeto para poseer mas cosas dentro, el tipo es: '+Simbolo.getTipo()+' Nombre: '+Simbolo.getIdentificador());
+                return;
             }
             NombreClase = Simbolo.getTipoDato().TipoDato;
             Ambito = Array.from(EntornoPadre.getClase(NombreClase).getAmbito());
@@ -5630,13 +5753,13 @@ function VariableArreglo_Variable_Caas(x,y,linea) {
 //###########################
 //## VARIABLE TIPO ARREGLO ##  //Es cuando se accede a una variable de tipo arreglo
 //###########################
-function VariableArreglo_CAAS(x,y,linea) {
-    this.Linea = linea;
+function VariableArreglo_CAAS(x,y,Linea) {
+    this.Linea = Linea;
     this.Nombre = x;
     this.Dimensiones = y;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Acceso a Variable tipo Arreglo',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Acceso a Variable tipo Arreglo',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);        
@@ -5714,15 +5837,13 @@ function VariableArreglo_CAAS(x,y,linea) {
                     TextoTemporal += '\n'+TemporalPosicionHeap+' = Heap['+TemporalPosicionHeap+'];';
                 }
                 if(Simbolo.getTipoDato().Tipo!='objeto'){//A menos que sea un string 
-                    alert('Debe ser un objeto para poseer mas cosas dentro, el tipo es: '+Simbolo.getTipo()+' Nombre: '+Simbolo.getIdentificador());
-                    this.AgregarError('Debe ser un objeto para poseer variables dentro');
+                    this.AgregarError('Debe ser un objeto para poseer mas cosas dentro, el tipo es: '+Simbolo.getTipo()+' Nombre: '+Simbolo.getIdentificador());
                 }
             }
             Simbolo = EntornoPadre.getSimboloVariable(Array.from(Ambito), this.Nombre[this.Nombre.length-1]);            
         }
         if(Simbolo ==undefined||Simbolo==null){
-            alert('No se encontro la variable '+this.Nombre[this.Nombre.length-1]+' en el ambito '+Ambito+", Nombre: ");
-            this.AgregarError('No se encontro la variable '+this.Nombre[this.Nombre.length-1]+' en el ambito '+Ambito+", Nombre: ")
+            this.AgregarError('No se encontro la variable '+this.Nombre[this.Nombre.length-1]+' en el ambito '+Ambito)
             return;
         } 
 //////////////////////////////////
@@ -5824,7 +5945,8 @@ function VariableArreglo_CAAS(x,y,linea) {
         }else if(CantidadDimensiones == Simbolo.getDimensiones()){//SI NO TIENE LA MISMA CANTIDAD DE DIMENSIONES            
             Texto += '\n'+TemporalPosicion + ' = Heap['+TemporalPosicionHeap+'];';
         }else{
-            alert('El arreglo posee mas dimensiones de las que deberia');
+            this.AgregarError('El arreglo posee mas dimensiones de las que deberia');
+            return;
         }
         Texto += '\ngoto '+EtiquetaSalida+';';
         Texto += '\n'+EtiquetaSalto+'://Si se trato de acceder al indice de un arreglo y no existe se retorna 0';
@@ -6041,6 +6163,17 @@ function Entorno_CAAS(){
         }
         alert(Texto);
     }
+    this.VerTablaTexto = function(){
+        Texto ='';
+        Texto +='\n###########################################################################################################';
+        Texto +='\n######################################## REPORTE TABLA DE SIMBOLOS ########################################';
+        Texto +='\n###########################################################################################################';
+        Texto +='\n';
+        for(let i =0;i<this.Nodos.length;i++){
+            Texto += '\nIdentificador: '+this.Nodos[i].getIdentificador()+',  Tipo: '+this.Nodos[i].getTipo()+',  Tipo de dato: '+this.Nodos[i].getTipoDato_Texto()+',  Ambito: '+this.Nodos[i].getAmbito()+',  Localizacion: '+this.Nodos[i].getLocalizacion()+',  Posicion relativa: '+this.Nodos[i].getPosicion()+', Tamaño:  '+this.Nodos[i].getSize();
+        }
+        return Texto;
+    };
     this.getSimboloVariable = function(Ambito,Identificador){
         for(let i = 0;i<this.Nodos.length&&Ambito.length>0;i++){
             if(this.Nodos[i].getTipo() =='variable'||this.Nodos[i].getTipo() =='arreglo'){
