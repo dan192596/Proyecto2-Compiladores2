@@ -22,6 +22,11 @@ function BloquePrincipal_CAAS(x,Linea){
                 this.Instrucciones = this.Instrucciones.concat(this.Instrucciones[i].Ejecutar(ListaArchivosImportados));
             }
         }
+        for(let i =0;i<this.Instrucciones.length;i++){
+            if(this.Instrucciones[i].type()=='declaracion_clase'){
+                this.Instrucciones = this.Instrucciones.concat(this.Instrucciones[i].getDeclaracionesClase());
+            }
+        }
 //DECLARACION DE CLASE
         let Texto = '';
         Texto += 'P = 0;'
@@ -146,8 +151,14 @@ function DeclaracionClase_CAAS(x,y,z,i,extiende,Linea){
         ErroresPadre.AgregarErrores(this.Errores);
         this.BloqueInstrucciones.RecuperarErrores(ErroresPadre);
     };
+    this.getDeclaracionesClase = function(){
+        return this.BloqueInstrucciones.getDeclaracionesClase();
+    };
     this.Ejecutar = function(EntornoPadre,Ambito){
             if(this.Hereda){
+                if(EntornoPadre.getClase(this.Extiende)==undefined||EntornoPadre.getClase(this.Extiende)==null){
+                    this.AgregarError('No se encontro la clase '+this.Extiende);
+                }
                 let Simbolo = EntornoPadre.getClase(this.Extiende);//this.Extiende es el nombre de la clase a buscar
                 Ambito = Array.from(Simbolo.getAmbito());
                 Ambito.push(Simbolo.getIdentificador());
@@ -157,6 +168,9 @@ function DeclaracionClase_CAAS(x,y,z,i,extiende,Linea){
     };
     this.DeclaracionVariablesClase = function(EntornoPadre,Ambito){
         if(this.Hereda){
+            if(EntornoPadre.getClase(this.Extiende)==undefined||EntornoPadre.getClase(this.Extiende)==null){
+                this.AgregarError('No se encontro la clase '+this.Extiende);                
+            }
             let Simbolo = EntornoPadre.getClase(this.Extiende);//this.Extiende es el nombre de la clase a buscar
             Ambito = Array.from(Simbolo.getAmbito());
             Ambito.push(Simbolo.getIdentificador());
@@ -209,7 +223,6 @@ function DeclaracionClase_CAAS(x,y,z,i,extiende,Linea){
         }
         EntornoPadre.AgregarSimbolo(this.Nombre,'clase',null,Size,null,Array.from(Ambito),Visibilidad,static,final,abstract,this.Extiende,0,this.BloqueInstrucciones.getParametros(),EntornoPadre.getLocalizacion());
         return true;
-
     }
     this.type = function(){
         return 'declaracion_clase';
@@ -231,11 +244,24 @@ function BloqueInstruccionesClase_CAAS(x,Linea){
             this.Instrucciones[i].RecuperarErrores(ErroresPadre);
         }
     };
+    this.getDeclaracionesClase = function(){
+        let Declaraciones = [];
+        for(let i =0;i<this.Instrucciones.length;i++){
+            if(this.Instrucciones[i].type()=='declaracion_clase'){
+                Declaraciones.push(this.Instrucciones[i]);
+            }
+        }
+        return Declaraciones;
+    }
     this.Ejecutar = function(EntornoPadre,Ambito,PrimeraPasada){
         let PosicionRelativaStack = 0;
         let Texto = '';
         if(Ambito.length > 1){
             let SimboloTemporal = EntornoPadre.getClase(Ambito[Ambito.length-2]);//this.Extiende es el nombre de la clase a buscar
+            if(SimboloTemporal==undefined||SimboloTemporal==null){
+                this.AgregarError('No se encontro la clase '+this.Extiende);
+                return '';
+            }
             PosicionRelativaStack = SimboloTemporal.getSize();
         }
 //Prueba //////////////////////////////////////////////////////
@@ -289,8 +315,6 @@ function BloqueInstruccionesClase_CAAS(x,Linea){
                 Texto += this.Instrucciones[i].Ejecutar(EntornoPadre,PosicionRelativaStack,Ambito,PrimeraPasada);
             }else if(this.Instrucciones[i].type()=='declaracion_constructor'){
                 Texto += this.Instrucciones[i].Ejecutar(EntornoPadre,PosicionRelativaStack,Ambito,PrimeraPasada);
-            }else{
-                Texto+= this.Instrucciones[i].Ejecutar(EntornoPadre);
             }
         }
         return Texto;
@@ -300,6 +324,10 @@ function BloqueInstruccionesClase_CAAS(x,Linea){
         let Texto = '';
         if(Ambito.length > 1){
             let SimboloTemporal = EntornoPadre.getClase(Ambito[Ambito.length-2]);//this.Extiende es el nombre de la clase a buscar
+            if(SimboloTemporal==undefined||SimboloTemporal==null){
+                this.AgregarError('No se encontro la clase '+this.Extiende);
+                return '';
+            }
             PosicionRelativaStack = SimboloTemporal.getSize();
         }
         EntornoPadre.setLocalizacion('Heap');
@@ -337,8 +365,6 @@ function BloqueInstruccionesClase_CAAS(x,Linea){
                 this.Instrucciones[i].Ejecutar(EntornoPadre,PosicionRelativaStack,Ambito,PrimeraPasada);
             }else if(this.Instrucciones[i].type()=='declaracion_constructor'){
                 this.Instrucciones[i].Ejecutar(EntornoPadre,PosicionRelativaStack,Ambito,PrimeraPasada);
-            }else{//Declracion de clases dentro de clase
-                this.Instrucciones[i].Ejecutar(EntornoPadre);
             }
         }
         return Texto;
@@ -403,12 +429,13 @@ function BloqueInstrucciones_CAAS(x,Linea){
                 ValValorTemporal = this.Instrucciones[i].Ejecutar(EntornoPadre);
                 if(ValValorTemporal==null || ValValorTemporal==undefined){
                     this.AgregarError('No se pudo realizar llamada de funcion en ambito '+Ambito)
+                }else{
+                    Texto += ValValorTemporal.Texto;
                 }
-                Texto += ValValorTemporal.Texto;
             }else{
                 ValValorTemporal = this.Instrucciones[i].Ejecutar(EntornoPadre);
                 if(ValValorTemporal==null||ValValorTemporal==undefined){
-                    this.AgregarError('No se pudo realizar instruccion en ambito '+Ambito);
+                    this.AgregarError('No se pudo realizar instruccion '+this.Instrucciones[i].type()+' en ambito '+Ambito);
                 }else{
                     Texto += ValValorTemporal;
                 }
@@ -1320,7 +1347,6 @@ function Return_CAAS(x,Linea) {
     };
     this.Ejecutar = function(EntornoPadre){
         let MetodoActual = EntornoPadre.getMetodoActual();
-        let ValValor;
         if(this.Valor!=undefined){
             ValValor = this.Valor.Ejecutar(EntornoPadre);
             if(ValValor==undefined||ValValor==null){
@@ -1349,10 +1375,13 @@ function Return_CAAS(x,Linea) {
                 ValValor.Texto+= '\n'+NuevaEtiquetaSalidaValValor+':';
             }
         }else{
-            if(!(MetodoActual.getTipoDato().Tipo == 'valor'&&MetodoActual.getTipoDato().TipoDatoDato=='vacio')){            
+            if(!(MetodoActual.getTipoDato().Tipo == 'valor'&&MetodoActual.getTipoDato().TipoDato=='vacio')){
                 this.AgregarError('El valor de retorno del metodo no es void, debe retornar algun valor');
                 return '';
             }
+            let ValValor = new Object(); 
+            ValValor.Texto = '\ngoto '+EntornoPadre.getEtiquetaSalidaMetodo()+';';
+            return ValValor.Texto;
         }
         let TemporalPosicionStack = 't'+EntornoPadre.Temporales.getNuevoTemporal();
         ValValor.Texto += '\n'+TemporalPosicionStack+' = P + 1;';
@@ -1437,10 +1466,28 @@ function AsignacionVariableArreglo_CAAS(x,y,z,Linea) {
                     this.AgregarError('No se encontro la variable '+this.Nombre[i]+' en el ambito '+Ambito);
                     return;
                 }
-                if(Simbolo.getTipo()!='objeto'){
+                if(Simbolo.getTipoDato().Tipo!='objeto'){
+                    if(i==0||(i==1&&this.Nombre[0]=='this')){
+                        if(Simbolo.getLocalizacion()=='Heap'){
+                            TextoTemporal += '\n'+TemporalPosicionStack+' = P + 0;';
+                            TextoTemporal += '\n'+TemporalPosicionHeap+' = Stack['+TemporalPosicionStack+'];';
+                            TextoTemporal += '\n'+TemporalPosicionHeap+' = '+TemporalPosicionHeap + ' + '+Simbolo.getPosicion()+';';
+                            TextoTemporal += '\n'+TemporalPosicionHeap+' = Heap['+TemporalPosicionHeap+'];';
+                        }else if(Simbolo.getLocalizacion()=='Stack'){
+                            TextoTemporal += '\n'+TemporalPosicionStack+' = P + '+Simbolo.getPosicion()+';';
+                            TextoTemporal += '\n'+TemporalPosicionHeap+' = Stack['+TemporalPosicionStack+'];';
+                        }
+                    }else{
+                        TextoTemporal += '\n'+TemporalPosicionHeap+' = '+TemporalPosicionHeap + ' + '+Simbolo.getPosicion()+';';
+                        TextoTemporal += '\n'+TemporalPosicionHeap+' = Heap['+TemporalPosicionHeap+'];';
+                    }
                     break;
                 }
                 NombreClase = Simbolo.getTipoDato().TipoDato;
+                if(EntornoPadre.getClase(NombreClase)==undefined||EntornoPadre.getClase(NombreClase)==null){
+                    this.AgregarError('No se encontro la clase '+this.Extiende);
+                    return ;
+                }
                 Ambito = Array.from(EntornoPadre.getClase(NombreClase).getAmbito());
                 Ambito.push(NombreClase);
                 if(i==0||(i==1&&this.Nombre[0]=='this')){
@@ -1601,10 +1648,28 @@ function AsignacionVariable_CAAS(x,y,Linea) {
                     this.AgregarError('No se encontro la variable '+this.Nombre[i]+' en el ambito '+Ambito);
                     return;
                 }
-                if(Simbolo.getTipo()!='objeto'){
+                if(Simbolo.getTipoDato().Tipo!='objeto'){
+                    if(i==0||(i==1&&this.Nombre[0]=='this')){
+                        if(Simbolo.getLocalizacion()=='Heap'){
+                            TextoTemporal += '\n'+TemporalPosicionStack+' = P + 0;';
+                            TextoTemporal += '\n'+TemporalPosicionHeap+' = Stack['+TemporalPosicionStack+'];';
+                            TextoTemporal += '\n'+TemporalPosicionHeap+' = '+TemporalPosicionHeap + ' + '+Simbolo.getPosicion()+';';
+                            TextoTemporal += '\n'+TemporalPosicionHeap+' = Heap['+TemporalPosicionHeap+'];';
+                        }else if(Simbolo.getLocalizacion()=='Stack'){
+                            TextoTemporal += '\n'+TemporalPosicionStack+' = P + '+Simbolo.getPosicion()+';';
+                            TextoTemporal += '\n'+TemporalPosicionHeap+' = Stack['+TemporalPosicionStack+'];';
+                        }
+                    }else{
+                        TextoTemporal += '\n'+TemporalPosicionHeap+' = '+TemporalPosicionHeap + ' + '+Simbolo.getPosicion()+';';
+                        TextoTemporal += '\n'+TemporalPosicionHeap+' = Heap['+TemporalPosicionHeap+'];';
+                    }
                     break;
                 }
                 NombreClase = Simbolo.getTipoDato().TipoDato;
+                if(EntornoPadre.getClase(NombreClase)==undefined||EntornoPadre.getClase(NombreClase)==null){
+                    this.AgregarError('No se encontro la clase '+this.Extiende);
+                    return ;
+                }
                 Ambito = Array.from(EntornoPadre.getClase(NombreClase).getAmbito());
                 Ambito.push(NombreClase);
                 if(i==0||(i==1&&this.Nombre[0]=='this')){
@@ -2092,6 +2157,7 @@ function DeclaracionMetodo_CAAS(x,y,z,d,p,i,Linea) {
 //Almacenar en que metodo me encuentro actualmente
         let MetodoActual = EntornoPadre.getMetodo(Array.from(Ambito), this.Identificador,ValParametros);
         if(MetodoActual==undefined || MetodoActual == null){
+            this.VerTabla
             this.AgregarError('No se encontro el metodo actual, Ambito: '+Ambito+ ', Nombre: '+this.Identificador+', Dimensiones: '+ValParametros);
             return;
         }
@@ -4964,10 +5030,28 @@ function Variable_CAAS(x,Linea) {
                     this.AgregarError('No se encontro la variable '+this.Nombre[i]+' en el ambito '+Ambito);
                     return;
                 }
-                if(Simbolo.getTipo()!='objeto'){
+                if(Simbolo.getTipoDato().Tipo!='objeto'){
+                    if(i==0||(i==1&&this.Nombre[0]=='this')){
+                        if(Simbolo.getLocalizacion()=='Heap'){
+                            TextoTemporal += '\n'+TemporalPosicionStack+' = P + 0;';
+                            TextoTemporal += '\n'+TemporalPosicionHeap+' = Stack['+TemporalPosicionStack+'];';
+                            TextoTemporal += '\n'+TemporalPosicionHeap+' = '+TemporalPosicionHeap + ' + '+Simbolo.getPosicion()+';';
+                            TextoTemporal += '\n'+TemporalPosicionHeap+' = Heap['+TemporalPosicionHeap+'];';
+                        }else if(Simbolo.getLocalizacion()=='Stack'){
+                            TextoTemporal += '\n'+TemporalPosicionStack+' = P + '+Simbolo.getPosicion()+';';
+                            TextoTemporal += '\n'+TemporalPosicionHeap+' = Stack['+TemporalPosicionStack+'];';
+                        }
+                    }else{
+                        TextoTemporal += '\n'+TemporalPosicionHeap+' = '+TemporalPosicionHeap + ' + '+Simbolo.getPosicion()+';';
+                        TextoTemporal += '\n'+TemporalPosicionHeap+' = Heap['+TemporalPosicionHeap+'];';
+                    }
                     break;
                 }
                 NombreClase = Simbolo.getTipoDato().TipoDato;
+                if(EntornoPadre.getClase(NombreClase)==undefined||EntornoPadre.getClase(NombreClase)==null){
+                    this.AgregarError('No se encontro la clase '+this.Extiende);
+                    return ;
+                }
                 Ambito = Array.from(EntornoPadre.getClase(NombreClase).getAmbito());
                 Ambito.push(NombreClase);
                 if(i==0||(i==1&&this.Nombre[0]=='this')){
@@ -5147,13 +5231,28 @@ function LlamadaFuncion_CAAS(x,y,Linea) {
                     this.AgregarError('No se encontro la variable '+this.Nombre[i]+' en el ambito '+Ambito);
                     return;
                 }
-                if(Simbolo.getTipo!='objeto'){
-                    break;
-                }
-                if(Simbolo.getTipo()!='objeto'){
+                if(Simbolo.getTipoDato().Tipo!='objeto'){
+                    if(i==0||(i==1&&this.Nombre[0]=='this')){
+                        if(Simbolo.getLocalizacion()=='Heap'){
+                            TextoTemporal += '\n'+TemporalPosicionStack+' = P + 0;';
+                            TextoTemporal += '\n'+TemporalPosicionHeap+' = Stack['+TemporalPosicionStack+'];';
+                            TextoTemporal += '\n'+TemporalPosicionHeap+' = '+TemporalPosicionHeap + ' + '+Simbolo.getPosicion()+';';
+                            TextoTemporal += '\n'+TemporalPosicionHeap+' = Heap['+TemporalPosicionHeap+'];';
+                        }else if(Simbolo.getLocalizacion()=='Stack'){
+                            TextoTemporal += '\n'+TemporalPosicionStack+' = P + '+Simbolo.getPosicion()+';';
+                            TextoTemporal += '\n'+TemporalPosicionHeap+' = Stack['+TemporalPosicionStack+'];';
+                        }
+                    }else{
+                        TextoTemporal += '\n'+TemporalPosicionHeap+' = '+TemporalPosicionHeap + ' + '+Simbolo.getPosicion()+';';
+                        TextoTemporal += '\n'+TemporalPosicionHeap+' = Heap['+TemporalPosicionHeap+'];';
+                    }
                     break;
                 }
                 NombreClase = Simbolo.getTipoDato().TipoDato;
+                if(EntornoPadre.getClase(NombreClase)==undefined||EntornoPadre.getClase(NombreClase)==null){
+                    this.AgregarError('No se encontro la clase '+NombreClase);
+                    return;
+                }
                 Ambito = Array.from(EntornoPadre.getClase(NombreClase).getAmbito());
                 Ambito.push(NombreClase);
                 if(i==0||(i==1&&this.Nombre[0]=='this')){
@@ -5187,6 +5286,7 @@ function LlamadaFuncion_CAAS(x,y,Linea) {
                         }
                     }
                     this.AgregarError('Debe ser un objeto para poseer funciones, el tipo es: '+Simbolo.getTipo()+' Nombre: '+Simbolo.getIdentificador());
+                    return ;
                 }
             }
             let PreSimbolo = Simbolo;
@@ -5791,10 +5891,28 @@ function VariableArreglo_Variable_Caas(x,y,Linea) {
                     this.AgregarError('No se encontro la variable '+this.Nombre[i]+' en el ambito '+Ambito);
                     return;
                 }
-                if(Simbolo.getTipo()!='objeto'){
+                if(Simbolo.getTipoDato().Tipo!='objeto'){
+                    if(i==0||(i==1&&this.Nombre[0]=='this')){
+                        if(Simbolo.getLocalizacion()=='Heap'){
+                            TextoTemporal += '\n'+TemporalPosicionStack+' = P + 0;';
+                            TextoTemporal += '\n'+TemporalPosicionHeap+' = Stack['+TemporalPosicionStack+'];';
+                            TextoTemporal += '\n'+TemporalPosicionHeap+' = '+TemporalPosicionHeap + ' + '+Simbolo.getPosicion()+';';
+                            TextoTemporal += '\n'+TemporalPosicionHeap+' = Heap['+TemporalPosicionHeap+'];';
+                        }else if(Simbolo.getLocalizacion()=='Stack'){
+                            TextoTemporal += '\n'+TemporalPosicionStack+' = P + '+Simbolo.getPosicion()+';';
+                            TextoTemporal += '\n'+TemporalPosicionHeap+' = Stack['+TemporalPosicionStack+'];';
+                        }
+                    }else{
+                        TextoTemporal += '\n'+TemporalPosicionHeap+' = '+TemporalPosicionHeap + ' + '+Simbolo.getPosicion()+';';
+                        TextoTemporal += '\n'+TemporalPosicionHeap+' = Heap['+TemporalPosicionHeap+'];';
+                    }
                     break;
                 }
                 NombreClase = Simbolo.getTipoDato().TipoDato;
+                if(EntornoPadre.getClase(NombreClase)==undefined||EntornoPadre.getClase(NombreClase)==null){
+                    this.AgregarError('No se encontro la clase '+this.Extiende);
+                    return ;
+                }
                 Ambito = Array.from(EntornoPadre.getClase(NombreClase).getAmbito());
                 Ambito.push(NombreClase);
                 if(i==0||(i==1&&this.Nombre[0]=='this')){
@@ -5979,18 +6097,31 @@ function VariableArreglo_Variable_Caas(x,y,Linea) {
                 return;
             }
         }else{
-            if(Simbolo.getTipoDato().Tipo!='objeto'){//A menos que sea un string 
-                this.AgregarError('Debe ser un objeto para poseer mas cosas dentro, el tipo es: '+Simbolo.getTipo()+' Nombre: '+Simbolo.getIdentificador());
-                return;
-            }
             if(Simbolo ==null||Simbolo==undefined){
                 this.AgregarError('No se encontro la variable '+this.Nombre[i]+' en el ambito '+Ambito);
                 return;
             }
-            if(Simbolo.getTipo()!='objeto'){
-                break;
+            if(Simbolo.getTipoDato().Tipo!='objeto'){
+                if(i==0||(i==1&&this.Nombre[0]=='this')){
+                    if(Simbolo.getLocalizacion()=='Heap'){
+                        TextoTemporal += '\n'+TemporalPosicionStack+' = P + 0;';
+                        TextoTemporal += '\n'+TemporalPosicionHeap+' = Stack['+TemporalPosicionStack+'];';
+                        TextoTemporal += '\n'+TemporalPosicionHeap+' = '+TemporalPosicionHeap + ' + '+Simbolo.getPosicion()+';';
+                        TextoTemporal += '\n'+TemporalPosicionHeap+' = Heap['+TemporalPosicionHeap+'];';
+                    }else if(Simbolo.getLocalizacion()=='Stack'){
+                        TextoTemporal += '\n'+TemporalPosicionStack+' = P + '+Simbolo.getPosicion()+';';
+                        TextoTemporal += '\n'+TemporalPosicionHeap+' = Stack['+TemporalPosicionStack+'];';
+                    }
+                }else{
+                    TextoTemporal += '\n'+TemporalPosicionHeap+' = '+TemporalPosicionHeap + ' + '+Simbolo.getPosicion()+';';
+                    TextoTemporal += '\n'+TemporalPosicionHeap+' = Heap['+TemporalPosicionHeap+'];';
+                }
             }
             NombreClase = Simbolo.getTipoDato().TipoDato;
+            if(EntornoPadre.getClase(NombreClase)==undefined||EntornoPadre.getClase(NombreClase)==null){
+                this.AgregarError('No se encontro la clase '+this.Extiende);
+                return ;
+            }
             Ambito = Array.from(EntornoPadre.getClase(NombreClase).getAmbito());
             Ambito.push(NombreClase);
             Simbolo = EntornoPadre.getSimboloVariable(Array.from(Ambito), this.Nombre[this.Nombre.length-1]);
@@ -6086,10 +6217,29 @@ function VariableArreglo_CAAS(x,y,Linea) {
                     this.AgregarError('No se encontro la variable '+this.Nombre[i]+' en el ambito '+Ambito);
                     return;
                 }
-                if(Simbolo.getTipo()!='objeto'){
+                if(Simbolo.getTipoDato().Tipo!='objeto'){
+                    
+                    if(i==0||(i==1&&this.Nombre[0]=='this')){
+                        if(Simbolo.getLocalizacion()=='Heap'){
+                            TextoTemporal += '\n'+TemporalPosicionStack+' = P + 0;';
+                            TextoTemporal += '\n'+TemporalPosicionHeap+' = Stack['+TemporalPosicionStack+'];';
+                            TextoTemporal += '\n'+TemporalPosicionHeap+' = '+TemporalPosicionHeap + ' + '+Simbolo.getPosicion()+';';
+                            TextoTemporal += '\n'+TemporalPosicionHeap+' = Heap['+TemporalPosicionHeap+'];';
+                        }else if(Simbolo.getLocalizacion()=='Stack'){
+                            TextoTemporal += '\n'+TemporalPosicionStack+' = P + '+Simbolo.getPosicion()+';';
+                            TextoTemporal += '\n'+TemporalPosicionHeap+' = Stack['+TemporalPosicionStack+'];';
+                        }
+                    }else{
+                        TextoTemporal += '\n'+TemporalPosicionHeap+' = '+TemporalPosicionHeap + ' + '+Simbolo.getPosicion()+';';
+                        TextoTemporal += '\n'+TemporalPosicionHeap+' = Heap['+TemporalPosicionHeap+'];';
+                    }
                     break;
                 }
                 NombreClase = Simbolo.getTipoDato().TipoDato;
+                if(EntornoPadre.getClase(NombreClase)==undefined||EntornoPadre.getClase(NombreClase)==null){
+                    this.AgregarError('No se encontro la clase '+this.Extiende);
+                    return ;
+                }
                 Ambito = Array.from(EntornoPadre.getClase(NombreClase).getAmbito());
                 Ambito.push(NombreClase);
                 if(i==0||(i==1&&this.Nombre[0]=='this')){
@@ -6521,18 +6671,14 @@ function Entorno_CAAS(){
                             let ParametrosMetodo = this.Nodos[i].getParametros();
                             let MismosParametros = true;
                             if(ParametrosBuscados.length == ParametrosMetodo.length){
-                                for(let j = 0; j <ParametrosBuscados.length&&MismosParametros;j++){
-                                    if(ParametrosBuscados[j].Tipo != ParametrosMetodo[j].Tipo.Tipo || ParametrosBuscados[j].TipoDato != ParametrosMetodo[j].Tipo.TipoDato){
-                                        if(ParametrosMetodo[j].Tipo.Tipo =='valor'&&ParametrosBuscados[j].Tipo=='valor'){
-                                            if(ParametrosMetodo[j].Tipo.TipoDato=='decimal'&&(ParametrosBuscados[j].TipoDato=='entero'||ParametrosBuscados[j].TipoDato=='caracter')){
-                                                /**Casteo implicito */
-                                            }else if(ParametrosMetodo[j].Tipo.TipoDato=='entero'&&(ParametrosBuscados[j].TipoDato=='caracter')){
-                                                /**Casteo implicito */
-                                            }else{
-                                                MismosParametros = false;    
-                                            }
+                                for(let j = 0; j <ParametrosBuscados.length&&MismosParametros;j++){                    
+                                    if(ParametrosBuscados[j].TipoDato != ParametrosMetodo[j].Tipo.TipoDato){
+                                        if(ParametrosMetodo[j].Tipo.TipoDato=='decimal'&&(ParametrosBuscados[j].TipoDato=='entero'||ParametrosBuscados[j].TipoDato=='caracter')){
+                                            /**Casteo implicito */
+                                        }else if(ParametrosMetodo[j].Tipo.TipoDato=='entero'&&(ParametrosBuscados[j].TipoDato=='caracter')){
+                                            /**Casteo implicito */
                                         }else{
-                                            MismosParametros = false;
+                                            MismosParametros = false;    
                                         }
                                     }
                                 }                                
@@ -6566,17 +6712,13 @@ function Entorno_CAAS(){
                             let MismosParametros = true;
                             if(ParametrosBuscados.length == ParametrosMetodo.length){
                                 for(let j = 0; j <ParametrosBuscados.length&&MismosParametros;j++){
-                                    if(ParametrosBuscados[j].Tipo != ParametrosMetodo[j].Tipo.Tipo || ParametrosBuscados[j].TipoDato != ParametrosMetodo[j].Tipo.TipoDato){
-                                        if(ParametrosMetodo[j].Tipo.Tipo =='valor'&&ParametrosBuscados[j].Tipo=='valor'){
-                                            if(ParametrosMetodo[j].Tipo.TipoDato=='decimal'&&(ParametrosBuscados[j].TipoDato=='entero'||ParametrosBuscados[j].TipoDato=='caracter')){
-                                                /**Casteo implicito */
-                                            }else if(ParametrosMetodo[j].Tipo.TipoDato=='entero'&&(ParametrosBuscados[j].TipoDato=='caracter')){
-                                                /**Casteo implicito */
-                                            }else{
-                                                MismosParametros = false;    
-                                            }
+                                    if(ParametrosBuscados[j].TipoDato != ParametrosMetodo[j].Tipo.TipoDato){
+                                        if(ParametrosMetodo[j].Tipo.TipoDato=='decimal'&&(ParametrosBuscados[j].TipoDato=='entero'||ParametrosBuscados[j].TipoDato=='caracter')){
+                                            /**Casteo implicito */
+                                        }else if(ParametrosMetodo[j].Tipo.TipoDato=='entero'&&(ParametrosBuscados[j].TipoDato=='caracter')){
+                                            /**Casteo implicito */
                                         }else{
-                                            MismosParametros = false;
+                                            MismosParametros = false;    
                                         }
                                     }
                                 }                                

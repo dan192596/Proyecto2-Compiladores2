@@ -10,14 +10,15 @@ function ManejadorArchivosSeleccionados(evt) {
         var reader = new FileReader();
         reader.onload = (function(theFile) {
             return function(e) {
-                let Texto = e.target.result.replace(/\n/g,'\\n');                
+                let Texto = e.target.result.replace(/\\/g,'\\\\');
+                Texto = Texto.replace(/\n/g,'\\n');
                 Texto = Texto.replace(/\r/g,'\\r');
                 Texto = Texto.replace(/"/g,'\\\"');
                 Texto = Texto.replace(/“/g,'\\\"');
                 Texto = Texto.replace(/”/g,'\\\"');
                 Texto = Texto.replace(/'/g,'\\\'');
                 Texto = Texto.replace(/‘/g,'\\\'');
-                Texto = Texto.replace(/’/g,'\\\'');
+                Texto = Texto.replace(/’/g,'\\\'');                
                 $('#tab-list').append($('<li class="nav-link active"><a href="#' + theFile.name.split('.')[0].replace(/\s/g,'') + '"onclick = "setTabSeleccionado(\''+ theFile.name.split('.')[0].replace(/\s/g,'')+'\')" role="tab" data-toggle="tab">' + theFile.name.split('.')[0] + '<button class="close" type="button" onclick = "EliminarEditor(\''+ theFile.name.split('.')[0].replace(/\s/g,'')+'\')" title="Cerrar esta pestaña">×</button></a></li>'));
                 $('#tab-content').append($('<div class="tab-pane fade in active" id="' + theFile.name.split('.')[0].replace(/\s/g,'') + '"><div id = "' +  theFile.name.split('.')[0].replace(/\s/g,'') + '"></div><script>var editor = CodeMirror(document.getElementById("' +  theFile.name.split('.')[0].replace(/\s/g,'') + '"),{mode: "text/x-java",theme: "base16-dark",lineNumbers: true,value:""});editor.setValue("'+Texto+'");AgregarEditor("' +  theFile.name.split('.')[0].replace(/\s/g,'') + '",editor);</script></div>'));
             };
