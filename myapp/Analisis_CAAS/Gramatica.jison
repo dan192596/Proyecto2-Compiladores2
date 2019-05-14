@@ -13,12 +13,13 @@ NumeroDecimal [0-9]+"."[0-9]+
 Caracter      [\'\‘\’].[\'\’\‘]
 BooleanoV     "true"
 BooleanoF     "false"
-Cadena        [\"\“\”][^\"\“\”]*[\"\“\”]
+Cadena        [\"\“\”](([^\"\“\”\\])*([\\].)*)*[\"\“\”]
+
 
 Identificador [A-Za-z_\ñ\Ñ][A-Za-z_0-9\ñ\Ñ]*
 
 comentariounilinea "/""/".*(\r|\n|\r\n)
-comentariomultilinea \/\*.*?\*\/
+comentariomultilinea [/][*][^*]*[*]+([^/*][^*]*[*]+)*[/]
 
 %%
 
@@ -198,7 +199,7 @@ CONTENIDOARCHIVO
     ;
 
 IMPORTACION
-    : import valcadena ';'  { $$ = new Importacion_CAAS($2,yylineno);}
+    : import valcadena ';'  { $$ = new Importacion_CAAS($2.replace(/\\/g,''),yylineno);}
     ;
 
 // ###################################
@@ -532,7 +533,7 @@ VALOR
     | valcaracter       {$$ = new Valor_CAAS('caracter',yytext.charCodeAt(1),yylineno);}
     | valverdadero      {$$ = new Valor_CAAS('booleano',1,yylineno);}
     | valfalso          {$$ = new Valor_CAAS('booleano',0,yylineno);}
-    | valcadena         {$$ = new Valor_CAAS('cadena',yytext,yylineno);}
+    | valcadena         {$$ = new Valor_CAAS('cadena',yytext.replace(/\\/g,''),yylineno);}
     | nulo              {$$ = new Valor_CAAS('nulo',-1,yylineno);}
     | VARIABLE          {$$ = new Variable_CAAS($1.Identificador,yylineno); }//falta
     | LLAMADAFUNCION    {$$ = $1; }

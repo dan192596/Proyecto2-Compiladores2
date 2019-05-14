@@ -1,14 +1,14 @@
 //#######################
 //## A R I T M E T I C A 
 //#######################
-function Aritmetica(x, y, z,linea) {
-    this.Linea = linea;
+function Aritmetica(x, y, z,Linea) {
+    this.Linea = Linea;
     this.Izq = x; 
     this.Der = y; 
     this.Op = z;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'aritmetica',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'aritmetica',this.Linea);
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
@@ -44,14 +44,14 @@ function Aritmetica(x, y, z,linea) {
 //#####################
 // R E L A C I O N A L
 //#####################
-function Relacional (x, y, z,linea) {
-    this.Linea = linea;
+function Relacional (x, y, z,Linea) {
+    this.Linea = Linea;
     this.Izq = x; 
     this.Der = y; 
     this.Op = z; 
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Relacional',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Relacional',this.Linea);
     };
     this.RecuperarErrores= function(ErroresPadre) {        
         ErroresPadre.AgregarErrores(this.Errores);
@@ -85,12 +85,12 @@ function Relacional (x, y, z,linea) {
 //#############
 //N U M E R O
 //#############
-function Numero(x,linea) {
-    this.Linea = linea;
+function Numero(x,Linea) {
+    this.Linea = Linea;
     this.Valor = x;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Numero',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Numero',this.Linea);
     };
     this.RecuperarErrores= function(ErroresPadre) {   
         ErroresPadre.AgregarErrores(this.Errores);     
@@ -105,12 +105,12 @@ function Numero(x,linea) {
 //##################
 // C A R A C T E R 
 //##################
-function Caracter(x,linea) {
-    this.Linea = linea;
+function Caracter(x,Linea) {
+    this.Linea = Linea;
     this.Valor = x;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Caracter',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Caracter',this.Linea);
     };
     this.RecuperarErrores= function(ErroresPadre) {
         ErroresPadre.AgregarErrores(this.Errores);
@@ -125,12 +125,12 @@ function Caracter(x,linea) {
 //#################
 // T E M P O R A L
 //#################
-function Temporal(x,linea) {
-    this.Linea = linea;
+function Temporal(x,Linea) {
+    this.Linea = Linea;
     this.Valor = x;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Temporal',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Temporal',this.Linea);
     };
     this.RecuperarErrores= function(ErroresPadre) {
         ErroresPadre.AgregarErrores(this.Errores);
@@ -145,13 +145,13 @@ function Temporal(x,linea) {
 //################
 // L I M P I A R
 //################
-function Limpiar(x,y,linea) {
-    this.Linea = linea;
+function Limpiar(x,y,Linea) {
+    this.Linea = Linea;
     this.Inicio = x; 
     this.Tam=y;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Limpiar',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Limpiar',this.Linea);
     };
     this.RecuperarErrores= function(ErroresPadre) {
         ErroresPadre.AgregarErrores(this.Errores);
@@ -168,13 +168,13 @@ function Limpiar(x,y,linea) {
 //##################
 // I M P R I M I R
 //##################
-function Imprimir(x,y,linea) {
-    this.Linea = linea;
+function Imprimir(x,y,Linea) {
+    this.Linea = Linea;
     this.CharTerminal = x; 
     this.Valor = y;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Imprimir',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Imprimir',this.Linea);
     };
     this.RecuperarErrores= function(ErroresPadre) {
         ErroresPadre.AgregarErrores(this.Errores);
@@ -206,12 +206,12 @@ function Imprimir(x,y,linea) {
 //############################
 // L L A M A D A M E T O D O
 //############################
-function LLamadaMetodo(x,linea) {
-    this.Linea = linea;
+function LLamadaMetodo(x,Linea) {
+    this.Linea = Linea;
     this.Identificador = x;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'LLamadaMetodo',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'LLamadaMetodo',this.Linea);
     };
     this.RecuperarErrores= function(ErroresPadre) {
         ErroresPadre.AgregarErrores(this.Errores);
@@ -228,13 +228,13 @@ function LLamadaMetodo(x,linea) {
 //####################################
 // D E C L A R A C I O N M E T O D O
 //####################################
-function DeclaracionMetodo(x,y,linea) {
-    this.Linea = linea;
+function DeclaracionMetodo(x,y,Linea) {
+    this.Linea = Linea;
     this.Identificador = x;
     this.Instrucciones = new Instrucciones(y,-1);    
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'DeclaracionMetodo',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'DeclaracionMetodo',this.Linea);
     };
     this.RecuperarErrores= function(ErroresPadre) {
         ErroresPadre.AgregarErrores(this.Errores);
@@ -257,13 +257,13 @@ function DeclaracionMetodo(x,y,linea) {
 //###################################################
 // S A L T O C O N D I C I O N A L V E R D A D E R O
 //###################################################
-function SaltoCondicionalVerdadero(x,y,linea){
-    this.Linea = linea;
+function SaltoCondicionalVerdadero(x,y,Linea){
+    this.Linea = Linea;
     this.Relacional=x;
     this.Salto = y;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'SaltoCondicionalVerdadero',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'SaltoCondicionalVerdadero',this.Linea);
     };
     this.RecuperarErrores= function(ErroresPadre) {
         ErroresPadre.AgregarErrores(this.Errores);
@@ -290,13 +290,13 @@ function SaltoCondicionalVerdadero(x,y,linea){
 //############################################
 // S A L T O C O N D I C I O N A L F A L S O
 //############################################
-function SaltoCondicionalFalso(x,y,linea) {
-    this.Linea = linea;
+function SaltoCondicionalFalso(x,y,Linea) {
+    this.Linea = Linea;
     this.Relacional=x;
     this.Salto = y;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'SaltoCondicionalFalso',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'SaltoCondicionalFalso',this.Linea);
     };
     this.RecuperarErrores= function(ErroresPadre) {
         ErroresPadre.AgregarErrores(this.Errores);
@@ -323,12 +323,12 @@ function SaltoCondicionalFalso(x,y,linea) {
 //#######################################
 // S A L T O   I N C O N D I C I O N A L
 //#######################################
-function SaltoIncondicional(x,linea) {
-    this.Linea = linea;
+function SaltoIncondicional(x,Linea) {
+    this.Linea = Linea;
     this.Etiqueta = x;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'SaltoIncondicional',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'SaltoIncondicional',this.Linea);
     };
     this.RecuperarErrores= function(ErroresPadre) {
         ErroresPadre.AgregarErrores(this.Errores);
@@ -343,12 +343,12 @@ function SaltoIncondicional(x,linea) {
 //############
 // S A L T O
 //############
-function Salto(x,linea) {
-    this.Linea = linea;
+function Salto(x,Linea) {
+    this.Linea = Linea;
     this.Etiqueta = x;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Salto',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Salto',this.Linea);
     };
     this.RecuperarErrores= function(ErroresPadre) {
         ErroresPadre.AgregarErrores(this.Errores);
@@ -363,14 +363,14 @@ function Salto(x,linea) {
 //#####################
 // A S I G N A C I O N
 //#####################
-function Asignacion(x,y,tipo,linea) {
-    this.Linea = linea;
+function Asignacion(x,y,tipo,Linea) {
+    this.Linea = Linea;
     this.Identificador=x;
     this.Valor = y
     this.Tipo = tipo;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Asignacion',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Asignacion',this.Linea);
     };
     this.RecuperarErrores= function(ErroresPadre) {
         ErroresPadre.AgregarErrores(this.Errores);
@@ -404,12 +404,12 @@ function Asignacion(x,y,tipo,linea) {
 //############################
 // I N S T R U C C I O N E S
 //############################
-function Instrucciones(lista,linea) {
-    this.Linea = linea;
+function Instrucciones(lista,Linea) {
+    this.Linea = Linea;
     this.Lista = lista;
     this.Errores = new Errores3D();
     this.AgregarError = function(descripcion){
-        this.Errores.Agregar('semantico',descripcion,'Instrucciones',this.linea);
+        this.Errores.Agregar('semantico',descripcion,'Instrucciones',this.Linea);
     };
     this.RecuperarErrores= function(ErroresPadre) {
         for(let i=0;i<this.Lista.length;i++){
@@ -555,7 +555,93 @@ function Entorno3D(Inst){
             }
         }
     };
+    this.VerTablaTexto = function(){
+        Texto = '';
+        Texto +='\n###############################################################################################################';
+        Texto +='\n######################################## REPORTE TABLA DE SIMBOLOS 3D ########################################';
+        Texto +='\n##############################################################################################################';
+        Texto +='\n';
+        let CantidadTemporales = 0;
+        for(let temporal in this.Temporales.Lista){
+            Texto += '\n'+temporal+' = '+this.Temporales.Lista[temporal]+';';
+            CantidadTemporales++;
+        }
+        Texto+='\n';
+        for(let i = 0;i<this.Stack.m.length;i++){
+            Texto += '\nStack['+i+'] = '+this.Stack.m[i]+';';
+        }
+        Texto+='\n';
+        for(let i = 0;i<this.Heap.m.length;i++){
+            Texto += '\nHeap['+i+'] = '+this.Heap.m[i]+';';
+        }
+        alert('Posee '+CantidadTemporales+' temporales, '+this.Stack.m.length+' casillas ocupadas en stack y '+this.Heap.m.length+' casillas ocupadas en Heap');
+        return Texto;
+    }
 }
+
+//#######################
+//## MANEJO DE ERRORES ##
+//#######################
+function Error3D(tipo,descripcion, clase, fila){
+    this.tipo = tipo;
+    this.descripcion = descripcion;
+    this.clase = clase;
+    this.fila = fila;
+    this.archivo = null;
+    this.getTipo = function() {
+        return this.tipo;
+    };
+    this.getDescripcion = function() {
+        return this.descripcion;
+    };   
+    this.getFila = function() {
+        return this.fila;
+    };
+    this.getClase = function() {
+        return this.clase;
+    };   
+    this.getArchivo = function(){
+        if(archivo==null)
+            return "";
+        return archivo;
+    };
+}
+
+function Errores3D(){
+    this.Tabla = [];
+    this.EnviarArchivo = function(archivo){
+        for (var i = 0; i < this.Tabla.length; i+=1)
+            if(this.Tabla[i].archivo==null)
+                this.Tabla[i].archivo = archivo;
+    };
+    this.Agregar=function(Tipo, Descripcion, Clase, Fila){
+        if(Descripcion==undefined&&Clase==undefined&&Fila==undefined){
+            this.Tabla.push(er);//Cuando viene el error completo
+        }else{
+            let NuevoError = new Error3D(Tipo, Descripcion, Clase, Fila);
+            this.Tabla.push(NuevoError);//Cuando quiero construir el error
+        }
+    };
+    this.AgregarErrores= function(ListaErrores){
+        this.Tabla = this.Tabla.concat(ListaErrores.Tabla);
+    };
+    this.getCantidadErrores= function(){
+        return this.Tabla.length;
+    };
+    this.getError=function(i){
+        return this.Tabla[i];
+    };
+    this.MostrarError = function(){
+        let Texto = '';
+        for(let i = 0;i<this.Tabla.length;i++){
+            Texto += '\nFila: '+this.Tabla[i].getFila()+',  Tipo: '+this.Tabla[i].getTipo()+',  Clase: '+this.Tabla[i].getClase()+',  Descripcion: '+this.Tabla[i].getDescripcion();
+        }
+        alert('Posee '+this.Tabla.length+' errores')
+        return Texto;
+    };
+
+}
+
 /*function Entorno(){
     this.Nodos = [];
     this.TablaPadre = null;
@@ -652,65 +738,3 @@ function Entorno3D(Inst){
     };
     
 }*/
-//#######################
-//## MANEJO DE ERRORES ##
-//#######################
-function Error3D(tipo,descripcion, clase, fila){
-    this.tipo = tipo;
-    this.descripcion = descripcion;
-    this.clase = clase;
-    this.fila = fila;
-    this.archivo = null;
-    this.getTipo = function() {
-        return this.tipo;
-    };
-    this.getDescripcion = function() {
-        return this.descripcion;
-    };   
-    this.getFila = function() {
-        return this.fila;
-    };
-    this.getClase = function() {
-        return this.clase;
-    };   
-    this.getArchivo = function(){
-        if(archivo==null)
-            return "";
-        return archivo;
-    };
-}
-
-function Errores3D(){
-    this.Tabla = [];
-    this.EnviarArchivo = function(archivo){
-        for (var i = 0; i < this.Tabla.length; i+=1)
-            if(this.Tabla[i].archivo==null)
-                this.Tabla[i].archivo = archivo;
-    };
-    this.Agregar=function(Tipo, Descripcion, Clase, Fila){
-        if(Descripcion==undefined&&Clase==undefined&&Fila==undefined){
-            this.Tabla.push(er);//Cuando viene el error completo
-        }else{
-            let NuevoError = new Error3D(Tipo, Descripcion, Clase, Fila);
-            this.Tabla.push(NuevoError);//Cuando quiero construir el error
-        }
-    };
-    this.AgregarErrores= function(ListaErrores){
-        this.Tabla = this.Tabla.concat(ListaErrores.Tabla);
-    };
-    this.getCantidadErrores= function(){
-        return this.Tabla.length;
-    };
-    this.getError=function(i){
-        return this.Tabla[i];
-    };
-    this.MostrarError = function(){
-        let Texto = '';
-        for(let i = 0;i<this.Tabla.length;i++){
-            Texto += '\nFila: '+this.Tabla[i].getFila()+',  Tipo: '+this.Tabla[i].getTipo()+',  Clase: '+this.Tabla[i].getClase()+',  Descripcion: '+this.Tabla[i].getDescripcion();
-        }
-        alert('Errores es:\n'+Texto);
-        return Texto;
-    };
-
-}

@@ -93,7 +93,7 @@ case 4: case 5:
 this.$ = []; this.$.push($$[$0]); 
 break;
 case 6:
- this.$ = new Importacion_CAAS($$[$0-1],yylineno);
+ this.$ = new Importacion_CAAS($$[$0-1].replace(/\\/g,''),yylineno);
 break;
 case 7:
  this.$ = new DeclaracionClase_CAAS($$[$0-3],$$[$0-1],false,$$[$0],null,yylineno);
@@ -462,7 +462,7 @@ case 182:
 this.$ = new Valor_CAAS('booleano',0,yylineno);
 break;
 case 183:
-this.$ = new Valor_CAAS('cadena',yytext,yylineno);
+this.$ = new Valor_CAAS('cadena',yytext.replace(/\\/g,''),yylineno);
 break;
 case 184:
 this.$ = new Valor_CAAS('nulo',-1,yylineno);
@@ -1181,7 +1181,7 @@ case 91:return 'INVALID';
 break;
 }
 },
-rules: [/^(?:(\/\/.*(\r|\n|\r\n)))/i,/^(?:(\/\*.*?\*\/))/i,/^(?:\s+)/i,/^(?:\t+)/i,/^(?:\r+)/i,/^(?:\n+)/i,/^(?:\+\+)/i,/^(?:--)/i,/^(?:\+)/i,/^(?:-)/i,/^(?:\*)/i,/^(?:\/)/i,/^(?:%)/i,/^(?:!=)/i,/^(?:==)/i,/^(?:>=)/i,/^(?:>)/i,/^(?:<=)/i,/^(?:<)/i,/^(?:&&)/i,/^(?:\|\|)/i,/^(?:!)/i,/^(?:\^)/i,/^(?:\?)/i,/^(?::)/i,/^(?:;)/i,/^(?:,)/i,/^(?:\[)/i,/^(?:\])/i,/^(?:\()/i,/^(?:\))/i,/^(?:\{)/i,/^(?:\})/i,/^(?:=)/i,/^(?:\.)/i,/^(?:int\b)/i,/^(?:double\b)/i,/^(?:char\b)/i,/^(?:boolean\b)/i,/^(?:string\b)/i,/^(?:void\b)/i,/^(?:linkedlist\b)/i,/^(?:private\b)/i,/^(?:protected\b)/i,/^(?:public\b)/i,/^(?:abstract )/i,/^(?:static\b)/i,/^(?:final\b)/i,/^(?:@override\b)/i,/^(?:break\b)/i,/^(?:case\b)/i,/^(?:catch\b)/i,/^(?:class\b)/i,/^(?:continue\b)/i,/^(?:default\b)/i,/^(?:do\b)/i,/^(?:else\b)/i,/^(?:extends\b)/i,/^(?:for\b)/i,/^(?:graph\b)/i,/^(?:if\b)/i,/^(?:import\b)/i,/^(?:instanceof\b)/i,/^(?:message\b)/i,/^(?:new\b)/i,/^(?:Object\b)/i,/^(?:pow\b)/i,/^(?:println\b)/i,/^(?:print\b)/i,/^(?:return\b)/i,/^(?:read_file\b)/i,/^(?:str\b)/i,/^(?:super\b)/i,/^(?:switch\b)/i,/^(?:this\b)/i,/^(?:throw\b)/i,/^(?:toChar\b)/i,/^(?:toDouble\b)/i,/^(?:toInt\b)/i,/^(?:try\b)/i,/^(?:while\b)/i,/^(?:write_file\b)/i,/^(?:([0-9]+\.[0-9]+))/i,/^(?:([0-9]+))/i,/^(?:([\'\‘\’].[\'\’\‘]))/i,/^(?:(true\b))/i,/^(?:(false\b))/i,/^(?:([\"\“\”][^\"\“\”]*[\"\“\”]))/i,/^(?:null\b)/i,/^(?:([A-Za-z_\ñ\Ñ][A-Za-z_0-9\ñ\Ñ]*))/i,/^(?:$)/i,/^(?:.)/i],
+rules: [/^(?:(\/\/.*(\r|\n|\r\n)))/i,/^(?:([\/][*][^*]*[*]+([^\/*][^*]*[*]+)*[\/]))/i,/^(?:\s+)/i,/^(?:\t+)/i,/^(?:\r+)/i,/^(?:\n+)/i,/^(?:\+\+)/i,/^(?:--)/i,/^(?:\+)/i,/^(?:-)/i,/^(?:\*)/i,/^(?:\/)/i,/^(?:%)/i,/^(?:!=)/i,/^(?:==)/i,/^(?:>=)/i,/^(?:>)/i,/^(?:<=)/i,/^(?:<)/i,/^(?:&&)/i,/^(?:\|\|)/i,/^(?:!)/i,/^(?:\^)/i,/^(?:\?)/i,/^(?::)/i,/^(?:;)/i,/^(?:,)/i,/^(?:\[)/i,/^(?:\])/i,/^(?:\()/i,/^(?:\))/i,/^(?:\{)/i,/^(?:\})/i,/^(?:=)/i,/^(?:\.)/i,/^(?:int\b)/i,/^(?:double\b)/i,/^(?:char\b)/i,/^(?:boolean\b)/i,/^(?:string\b)/i,/^(?:void\b)/i,/^(?:linkedlist\b)/i,/^(?:private\b)/i,/^(?:protected\b)/i,/^(?:public\b)/i,/^(?:abstract )/i,/^(?:static\b)/i,/^(?:final\b)/i,/^(?:@override\b)/i,/^(?:break\b)/i,/^(?:case\b)/i,/^(?:catch\b)/i,/^(?:class\b)/i,/^(?:continue\b)/i,/^(?:default\b)/i,/^(?:do\b)/i,/^(?:else\b)/i,/^(?:extends\b)/i,/^(?:for\b)/i,/^(?:graph\b)/i,/^(?:if\b)/i,/^(?:import\b)/i,/^(?:instanceof\b)/i,/^(?:message\b)/i,/^(?:new\b)/i,/^(?:Object\b)/i,/^(?:pow\b)/i,/^(?:println\b)/i,/^(?:print\b)/i,/^(?:return\b)/i,/^(?:read_file\b)/i,/^(?:str\b)/i,/^(?:super\b)/i,/^(?:switch\b)/i,/^(?:this\b)/i,/^(?:throw\b)/i,/^(?:toChar\b)/i,/^(?:toDouble\b)/i,/^(?:toInt\b)/i,/^(?:try\b)/i,/^(?:while\b)/i,/^(?:write_file\b)/i,/^(?:([0-9]+\.[0-9]+))/i,/^(?:([0-9]+))/i,/^(?:([\'\‘\’].[\'\’\‘]))/i,/^(?:(true\b))/i,/^(?:(false\b))/i,/^(?:([\"\“\”](([^\"\“\”\\])*([\\].)*)*[\"\“\”]))/i,/^(?:null\b)/i,/^(?:([A-Za-z_\ñ\Ñ][A-Za-z_0-9\ñ\Ñ]*))/i,/^(?:$)/i,/^(?:.)/i],
 conditions: {"INITIAL":{"rules":[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91],"inclusive":true}}
 });
 return lexer;

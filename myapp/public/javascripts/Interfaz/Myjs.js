@@ -35,7 +35,7 @@ function EliminarEditor(nombre){
     }
 }
 function AgregarEditor(nombre,editor){    
-    let elemento = {'nombre':nombre,'editor':editor};
+    let elemento = {'nombre':nombre,'editor':editor,'Errores':(new Errores3D()),'TablaSimbolos':( new Entorno_CAAS())};
     ListaEditor.unshift(elemento);    
 }
 function setTabSeleccionado(Pestaña){
@@ -86,10 +86,12 @@ var editor = CodeMirror(document.getElementById("console"),{
 $(document).ready(function () {
     //Realizar la traduccion
     $('#btn-compilar').click(function () {
-        var editor=null; 
+        var editor=null;
+        let Posicion = null; 
         for(let i = 0;i<ListaEditor.length;i++){
             if(ListaEditor[i]['nombre']==PestañaActual){
                 editor = ListaEditor[i]['editor'];
+                Posicion = i;
                 break;
             }
         }
@@ -102,17 +104,25 @@ $(document).ready(function () {
             var respuesta = parserCAAS.parse(String(texto+"\n"));//Analisis del texto obtenido            
             //#####  Traduccion a 3D ######            
             let Entorno = new Entorno_CAAS();
+            let Errores = new Errores3D();
             respuesta.Ejecutar(Entorno);
+            respuesta.RecuperarErrores(Errores);
+            errores_201404268.setValue(Errores.MostrarError());
+            Entorno.VerTablaTexto()
+            ListaEditor[Posicion]['Errores'] = Errores;
+            ListaEditor[Posicion]['TablaSimbolos'] = Entorno;
             //#########################
         } catch (error) {
-            alert('Ocurrio un error '+error);
+            alert('Ocurrio un error: \n'+error);
         }        
     });
     $('#btn-Ejecutar3D').click(function () {
-        var editor=null; 
+        let editor=null; 
+        let Posicion = null; 
         for(let i = 0;i<ListaEditor.length;i++){
             if(ListaEditor[i]['nombre']==PestañaActual){
                 editor = ListaEditor[i]['editor'];
+                Posicion = i;
                 break;
             }
         }
@@ -121,15 +131,21 @@ $(document).ready(function () {
             return;
         }
         var texto = editor.getValue('\n');
-        try {            
+        try {
             var respuesta = parser3D.parse(String(texto+"\n"));//Analisis del texto obtenido
-            //#####  Ejecucion 3D #####            
+            //#####  Ejecucion 3D #####
             let Inst = new Instrucciones(respuesta,-1);
+            let Errores = new Errores3D();
             let Entorno = new Entorno3D(Inst);
             Inst.Ejecutar(Entorno);
+            Inst.RecuperarErrores(Errores);
+            errores_201404268.setValue(Errores.MostrarError());
+            Entorno.VerTablaTexto()
+            ListaEditor[Posicion]['Errores'] = Errores;
+            ListaEditor[Posicion]['TablaSimbolos'] = Entorno;
             //#########################
         } catch (error) {
-            alert('Ocurrio un error '+error);
+            alert('Ocurrio un error: \n'+error);
         }        
     });
     //INICIALIZAR EL PRIMER CODEMIRROR
@@ -176,6 +192,34 @@ $(document).ready(function () {
         NumeroTab++;
         $('#tab-list').append($('<li class="nav-link active"><a href="#tab' + NumeroTab + '" onclick = "setTabSeleccionado(\'Tab'+NumeroTab+'\')" role="tab" data-toggle="tab">Tab ' + NumeroTab + '<button class="close" type="button" onclick = "EliminarEditor(\'Tab'+NumeroTab+'\')" title="Cerrar esta pestaña">×</button></a></li>'));
         $('#tab-content').append($('<div class="tab-pane fade in active" id="tab' + NumeroTab + '"><div id = "Tab' + NumeroTab + '"></div><script>var editor = CodeMirror(document.getElementById("Tab' + NumeroTab + '"),{mode: "text/x-java",theme: "base16-dark",lineNumbers: true});AgregarEditor("Tab' + NumeroTab + '",editor);</script></div>'));
+    });
+    //##############
+    //## REPORTES ##
+    //##############
+    $('#btn-ReporteErrores').click(function () {
+        for(let i = 0;i<ListaEditor.length;i++){
+            if(ListaEditor[i]['nombre']==PestañaActual){
+                errores_201404268.setValue(ListaEditor[i]['Errores'].MostrarError());
+                break;
+            }
+        }
+    });
+    $('#btn-ReporteTablaSimbolos').click(function () {
+        for(let i = 0;i<ListaEditor.length;i++){
+            if(ListaEditor[i]['nombre']==PestañaActual){
+                consola_201404268.setValue(ListaEditor[i]['TablaSimbolos'].VerTablaTexto());
+                break;
+            }
+        }
+    });
+    //#############
+    //## CONSOLA ##
+    //#############
+    $('#btn-LimpiarErrores').click(function () {        
+        errores_201404268.setValue('');
+    });
+    $('#btn-LimpiarSalida').click(function () {        
+        consola_201404268.setValue('');
     });
     //Presionar el boton para cerrar el tab
     $('#tab-list').on('click','.close',function(){        

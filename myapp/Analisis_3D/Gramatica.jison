@@ -12,7 +12,7 @@ charterminale [\"\“\”\'\‘]\%"e"[\"\“\”\'\’]
 charterminald [\"\“\”\'\‘]\%"d"[\"\“\”\'\’]
 
 comentariounilinea "/""/".*(\r|\n|\r\n)
-comentariomultilinea \/\*.*?\*\/
+comentariomultilinea [/][*][^*]*[*]+([^/*][^*]*[*]+)*[/]
 
 %%
 
