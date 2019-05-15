@@ -138,7 +138,7 @@ $(document).ready(function () {
             let Inst = new Instrucciones(respuesta,-1);
             let Errores = new Errores3D();
             let Entorno = new Entorno3D(Inst);
-            Inst.Ejecutar(Entorno);
+            Inst.Ejecutar(Entorno,0);//0 va a ser el contador de entorno
             Inst.RecuperarErrores(Errores);
             errores_201404268.setValue(Errores.MostrarError());
             Entorno.VerTablaTexto()

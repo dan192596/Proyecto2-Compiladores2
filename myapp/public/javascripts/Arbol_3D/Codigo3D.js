@@ -12,12 +12,6 @@ function Aritmetica(x, y, z,Linea) {
     };
     this.RecuperarErrores = function(ErroresPadre){
         ErroresPadre.AgregarErrores(this.Errores);
-        if(Izq!=null){
-            Izq.RecuperarErrores(ErroresPadre);
-        }
-        if(Der!=null){
-            Der.RecuperarErrores(ErroresPadre);
-        }
 
     };
     this.Ejecutar = function(EntornoPadre){
@@ -55,10 +49,6 @@ function Relacional (x, y, z,Linea) {
     };
     this.RecuperarErrores= function(ErroresPadre) {        
         ErroresPadre.AgregarErrores(this.Errores);
-        if(Izq!=null)
-            Izq.RecuperarErrores(ErroresPadre);  
-        if(Der!=null)
-            Der.RecuperarErrores(ErroresPadre);
     };
     this.Ejecutar = function(EntornoPadre){
         let ValIzq = this.Izq.Ejecutar(EntornoPadre);
@@ -136,7 +126,13 @@ function Temporal(x,Linea) {
         ErroresPadre.AgregarErrores(this.Errores);
     };
     this.Ejecutar = function(EntornoPadre){
-        return EntornoPadre.Temporales.GetValorTemporal(this.Valor);//Valor guarda el nombre del temporal t(n)
+        let Contador = EntornoPadre.getContador();
+        if(this.Valor!='H'&&this.Valor!='h'&&this.Valor!='P'&&this.Valor!='p'){
+            return EntornoPadre.Temporales.GetValorTemporal(this.Valor+'_'+Contador);//Valor guarda el nombre del temporal t(n)
+        }else{
+            return EntornoPadre.Temporales.GetValorTemporal(this.Valor);//Valor guarda el nombre del temporal t(n)
+        }
+        
     };
     this.type = function(){
         return 'temporal';
@@ -178,9 +174,6 @@ function Imprimir(x,y,Linea) {
     };
     this.RecuperarErrores= function(ErroresPadre) {
         ErroresPadre.AgregarErrores(this.Errores);
-        if(this.Valor!=null){
-            this.Valor.RecuperarErrores(ErroresPadre);
-        }
     };
     this.Ejecutar = function(EntornoPadre){        
         let ValValor = this.Valor.Ejecutar(EntornoPadre);        
@@ -188,8 +181,6 @@ function Imprimir(x,y,Linea) {
             this.AgregarError("No se pudo recuperar el valor a imprimir");
             return null;
         }
-        //alert('El valor a imprimir es '+ValValor);
-        //alert('El valor del temporal t59 es '+EntornoPadre.Temporales.GetValorTemporal('t59'));
         let texto = consola_201404268.getValue('\n');        
         switch(this.CharTerminal){
             case 'c':texto+=String.fromCharCode(ValValor);break;
@@ -238,9 +229,6 @@ function DeclaracionMetodo(x,y,Linea) {
     };
     this.RecuperarErrores= function(ErroresPadre) {
         ErroresPadre.AgregarErrores(this.Errores);
-        if(this.Instrucciones!=null){
-            this.Instrucciones[i].RecuperarErrores(ErroresPadre);
-        }
     };
     this.Ejecutar = function(EntornoPadre){
         //HACER COMPROBACION PARA VER SI YA EXISTE EL METODO
@@ -267,9 +255,6 @@ function SaltoCondicionalVerdadero(x,y,Linea){
     };
     this.RecuperarErrores= function(ErroresPadre) {
         ErroresPadre.AgregarErrores(this.Errores);
-        if(this.Relacional!=null){
-            Relacional.RecuperarErrores(ErroresPadre);
-        }
     };
     this.Ejecutar = function(EntornoPadre){        
         let ValRelacional = this.Relacional.Ejecutar(EntornoPadre);
@@ -300,9 +285,6 @@ function SaltoCondicionalFalso(x,y,Linea) {
     };
     this.RecuperarErrores= function(ErroresPadre) {
         ErroresPadre.AgregarErrores(this.Errores);
-        if(this.Relacional!=null){
-            Relacional.RecuperarErrores(ErroresPadre);
-        }
     };
     this.Ejecutar = function(EntornoPadre){
         let ValRelacional = Relacional.Ejecutar(EntornoPadre);
@@ -374,21 +356,33 @@ function Asignacion(x,y,tipo,Linea) {
     };
     this.RecuperarErrores= function(ErroresPadre) {
         ErroresPadre.AgregarErrores(this.Errores);
-        if(this.Valor!=null){
-            Valor.RecuperarErrores(ErroresPadre);
-        }
     };
     this.Ejecutar = function(EntornoPadre){
+        let Contador = EntornoPadre.getContador();
         let ValValor = this.Valor.Ejecutar(EntornoPadre);
         if(this.Tipo =='temporal'){//Asignar un valor a un temporal, numero, expresion o otro temporal
-            EntornoPadre.Temporales.SetValorTemporal(this.Identificador, ValValor);
+            if(this.Identificador!='H'&&this.Identificador!='h'&&this.Identificador!='P'&&this.Identificador!='p'){
+                EntornoPadre.Temporales.SetValorTemporal(this.Identificador+'_'+Contador, ValValor);
+            }else{
+                EntornoPadre.Temporales.SetValorTemporal(this.Identificador, ValValor);
+            }            
             return;
         }else if(this.Tipo=='temporal_heap'){//asignacion de a un temporal un valor del heap
-            let ValorRecuperadoStack = EntornoPadre.Heap.getValor(ValValor);
-            EntornoPadre.Temporales.SetValorTemporal(this.Identificador, ValorRecuperadoStack);
+            if(this.Identificador!='H'&&this.Identificador!='h'&&this.Identificador!='P'&&this.Identificador!='p'){
+                let ValorRecuperadoStack = EntornoPadre.Heap.getValor(ValValor);
+                EntornoPadre.Temporales.SetValorTemporal(this.Identificador+'_'+Contador, ValorRecuperadoStack);
+            }else{
+                let ValorRecuperadoStack = EntornoPadre.Heap.getValor(ValValor);
+                EntornoPadre.Temporales.SetValorTemporal(this.Identificador, ValorRecuperadoStack);
+            }            
         }else if(this.Tipo=='temporal_stack'){//Asignacion de un temporal un valor del stack
-            let ValorRecuperadoStack = EntornoPadre.Stack.getValor(ValValor);
-            EntornoPadre.Temporales.SetValorTemporal(this.Identificador, ValorRecuperadoStack);
+            if(this.Identificador!='H'&&this.Identificador!='h'&&this.Identificador!='P'&&this.Identificador!='p'){
+                let ValorRecuperadoStack = EntornoPadre.Stack.getValor(ValValor);
+                EntornoPadre.Temporales.SetValorTemporal(this.Identificador+'_'+Contador, ValorRecuperadoStack);
+            }else{
+                let ValorRecuperadoStack = EntornoPadre.Stack.getValor(ValValor);
+                EntornoPadre.Temporales.SetValorTemporal(this.Identificador, ValorRecuperadoStack);
+            }
         }else if(this.Tipo=='heap'){//Asignacion de un espacio en heap de un temporal, o un valor 
             let ValIdentificador = this.Identificador.Ejecutar(EntornoPadre);
             EntornoPadre.Heap.SetValor(ValIdentificador,ValValor);
@@ -412,9 +406,7 @@ function Instrucciones(lista,Linea) {
         this.Errores.Agregar('semantico',descripcion,'Instrucciones',this.Linea);
     };
     this.RecuperarErrores= function(ErroresPadre) {
-        for(let i=0;i<this.Lista.length;i++){
-            this.Lista[i].RecuperarErrores;
-        }
+        
     };
     this.Ejecutar = function(EntornoPadre){
         let EtiquetaEncontrada = true;
@@ -446,12 +438,17 @@ function Instrucciones(lista,Linea) {
             }
         }
     };
-    this.EjecutarMetodo = function(EntornoPadre,Identificador){
+    this.EjecutarMetodo = function(EntornoPadre,Identificador){ 
+        let Contador = EntornoPadre.getContador();       
         for(let i=0;i<this.Lista.length;i++){
             if(this.Lista[i].type()=='declaracionmetodo'){
                 if(this.Lista[i].Identificador==Identificador){
+                    Contador++;
+                    EntornoPadre.setContador(Contador);
                     let Inst = this.Lista[i].Instrucciones;
-                    Inst.Ejecutar(EntornoPadre);
+                    Inst.Ejecutar(EntornoPadre,Contador);
+                    Contador--;
+                    EntornoPadre.setContador(Contador);
                     break;
                 }
             }            
@@ -544,16 +541,18 @@ function Entorno3D(Inst){
     this.Stack = new Memoria3D();
     this.Heap = new Memoria3D();
     this.Errores = new Errores3D();
+    this.Contador = 0;
+    this.getContador = function(){
+        return this.Contador;
+    }
+    this.setContador = function(contador){
+        this.Contador = contador;
+    }
     this.AgregarError = function(descripcion){
         this.Errores.Agregar('semantico',descripcion,'Entorno',-1);
     };
     this.RecuperarErrores= function(ErroresPadre) {
         ErroresPadre.AgregarErrores(this.Error);
-        if(this.Instrucciones!=null){
-            for(let i =0;i<this.Instrucciones.length;i++){
-                this.Instrucciones[i].RecuperarErrores();
-            }
-        }
     };
     this.VerTablaTexto = function(){
         Texto = '';
@@ -576,6 +575,24 @@ function Entorno3D(Inst){
         }
         alert('Posee '+CantidadTemporales+' temporales, '+this.Stack.m.length+' casillas ocupadas en stack y '+this.Heap.m.length+' casillas ocupadas en Heap');
         return Texto;
+    }
+    this.VerTablaTextoResumen = function(){
+        Texto = '';        
+        let CantidadTemporales = 0;
+        for(let temporal in this.Temporales.Lista){
+            Texto += '\n'+temporal+' = '+this.Temporales.Lista[temporal]+';';
+            CantidadTemporales++;
+        }
+        Texto+='\n';
+        for(let i = 0;i<this.Stack.m.length;i++){
+            Texto += '\nStack['+i+'] = '+this.Stack.m[i]+';';
+        }
+        Texto+='\n';
+        for(let i = 0;i<this.Heap.m.length;i++){
+            Texto += '\nHeap['+i+'] = '+this.Heap.m[i]+';';
+        }
+        alert('Posee '+CantidadTemporales+' temporales, '+this.Stack.m.length+' casillas ocupadas en stack y '+this.Heap.m.length+' casillas ocupadas en Heap');
+        alert(Texto);
     }
 }
 

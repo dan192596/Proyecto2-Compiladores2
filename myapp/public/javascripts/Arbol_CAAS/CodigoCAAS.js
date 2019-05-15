@@ -62,7 +62,6 @@ function BloquePrincipal_CAAS(x,Linea){
                 Texto += this.Instrucciones[i].Ejecutar(EntornoPadre,Ambito);
             }
         }
-        EntornoPadre.VerTabla();
         Texto += '\n\n\n'
         Texto += '//### LLAMADA A METODO MAIN ###'
         Texto += '\nHeap[0] = 0;//Guardo la posicion en heap de la clase main'        
@@ -2157,7 +2156,6 @@ function DeclaracionMetodo_CAAS(x,y,z,d,p,i,Linea) {
 //Almacenar en que metodo me encuentro actualmente
         let MetodoActual = EntornoPadre.getMetodo(Array.from(Ambito), this.Identificador,ValParametros);
         if(MetodoActual==undefined || MetodoActual == null){
-            this.VerTabla
             this.AgregarError('No se encontro el metodo actual, Ambito: '+Ambito+ ', Nombre: '+this.Identificador+', Dimensiones: '+ValParametros);
             return;
         }
@@ -4868,25 +4866,26 @@ function Ternario_CAAS(x,y,z,Linea) {
         ValRetorno.TipoDato = TipoResultante;
         ValRetorno.Temporal = NuevoTemporal;
         ValRetorno.Tipo = 'valor';
-        ValRetorno.Texto = ValVerdadero.Texto + ValFalso.Texto;
         //Me falta ver cuando en ternario puede regresar objetos o arreglos    
         if(ValCondicion.TipoDato == 'booleano'){
             for(let i = 0;i<ValCondicion.ListaVerdaderos.length;i++){
                 ValCondicion.Texto += '\n'+ValCondicion.ListaVerdaderos[i]+':';
-            }            
+            }  
+            ValCondicion.Texto+=ValVerdadero.Texto;
             ValCondicion.Texto+= '\n'+ValRetorno.Temporal+' = '+ValVerdadero.Temporal+';';
             let NuevaEtiquetaSalidaValCondicion = 'L'+EntornoPadre.Etiquetas.getNuevaEtiqueta();
             ValCondicion.Texto+= '\ngoto '+NuevaEtiquetaSalidaValCondicion+';';
             for(let i = 0;i<ValCondicion.ListaFalsos.length;i++){
                 ValCondicion.Texto += '\n'+ValCondicion.ListaFalsos[i]+':';
-            }            
+            }
+            ValCondicion.Texto+=ValFalso.Texto;
             ValCondicion.Texto+= '\n'+ValRetorno.Temporal+' = '+ValFalso.Temporal+';';
             ValCondicion.Texto+= '\n'+NuevaEtiquetaSalidaValCondicion+':';
         }else{
             this.AgregarError('La condicion del ternario debe retornar un valor de tipo booleano');
             return;
         }
-        ValRetorno.Texto += ValCondicion.Texto;
+        ValRetorno.Texto = ValCondicion.Texto;
         if(TipoResultante=='booleano'){
             ValRetorno.ListaVerdaderos = [];
             ValRetorno.ListaFalsos = [];
